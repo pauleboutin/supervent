@@ -152,7 +152,6 @@ func generateLogRecord() map[string]interface{} {
 		"_time":       timestamp,
 		"user_id":     generateZipfianUserID(20000),
 		"level":       randomChoice([]string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}, []uint{10, 50, 20, 15, 5}),
-		"logger":      "custom_logger",
 		"protocol":    randomChoice([]string{"HTTP", "HTTPS", "FTP", "SSH"}, []uint{50, 40, 5, 5}),
 		"source_port": rand.Intn(65535-1024) + 1024,
 		"dest_port":   randomChoice([]int{80, 443, 21, 22}, []uint{50, 40, 5, 5}),
