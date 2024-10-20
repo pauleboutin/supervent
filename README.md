@@ -1,7 +1,7 @@
 # supervent
 
 Synthetic log event generator that mimics the variety and patterns seen on real world infrastuctures, but does not use any real data, anonymized data, or other privacy risks in generation.
-This version is a quick proof of concept -- version 0.0. There are Python and Go versions that do the same thing. Take your pick.
+This version is a quick proof of concept -- version 0.0. I implemented it twice -- once in Python for popularity, once in Go for performance. Take your pick, or run both at once like I do.
 
 The 1.0 version will be configurable via a JSON file that specifies event sources and the behavior of each.
 
