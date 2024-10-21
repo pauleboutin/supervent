@@ -1,8 +1,0 @@
-
-# Name of an Axiom dataset to send events via HTTP for ingest
-# You can sign up for a free Axiom account at https://axiom.co
-AXIOM_DATASET: supervent
-# This is not a valid Axiom key, but it's what they look like.
-AXIOM_API_KEY: xaat-0e268974-2001-4c1f-a747-6etdac5257f1
-# The maximum number of events to send in a single HTTP request
-HTTP_BATCH_SIZE: 200
