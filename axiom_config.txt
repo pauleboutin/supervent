@@ -1,2 +1,0 @@
-AXIOM_DATASET=dataset-name-goes-here
-AXIOM_API_KEY=api-key-goes-here
