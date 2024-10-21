@@ -10,16 +10,47 @@ import yaml
 import argparse
 import signal
 import sys
+import psycopg2
+from psycopg2.extras import execute_values
+from psycopg2.pool import SimpleConnectionPool
+from contextlib import asynccontextmanager
 
 DEFAULT_BATCH_SIZE = 100
 
+class AsyncPgPool:
+    def __init__(self, dsn, min_size=1, max_size=10):
+        self.pool = SimpleConnectionPool(min_size, max_size, dsn)
+        self._loop = asyncio.get_event_loop()
+        
+    @asynccontextmanager
+    async def acquire(self):
+        conn = await self._loop.run_in_executor(None, self.pool.getconn)
+        try:
+            yield conn
+        finally:
+            await self._loop.run_in_executor(None, self.pool.putconn, conn)
+
 class EventGenerator:
-    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE):
-        self.dataset = dataset
-        self.api_key = api_key
-        self.url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
-        self.batch_size = batch_size
+    def __init__(self, args):
+        self.args = args
         self.batch = []
+        self.axiom_url = f"https://api.axiom.co/v1/datasets/{args.axiom_dataset}/ingest"
+        if self.args.pgconn:
+            self.pg_pool = AsyncPgPool(self.args.pgconn)
+            asyncio.create_task(self.setup_postgres())
+
+    async def setup_postgres(self):
+        async with self.pg_pool.acquire() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.args.pgtable} (
+                    id SERIAL PRIMARY KEY,
+                    data JSONB,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+            cur.close()
 
     async def emit(self, record):
         # Strip "custom." prefix from keys
@@ -28,35 +59,48 @@ class EventGenerator:
         stripped_record['_time'] = datetime.now(timezone.utc).isoformat()
 
         self.batch.append(stripped_record)
-        if len(self.batch) >= self.batch_size:
+        if len(self.batch) >= self.args.batchsize:
             await self.send_batch()
 
     async def send_batch(self):
         if not self.batch:
             return
-        # print("sending batch")
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-        async with aiohttp.ClientSession() as session:
-            async with session.post(self.url, headers=headers, json=self.batch) as response:
-                if response.status != 200:
-                    print(f"Failed to send batch: {response.status}")
-            # else:
-                # print("Batch sent successfully")
+
+        if self.args.axiom_api_key != '':
+            # print("sending batch")
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.args.axiom_api_key}"
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.axiom_url, headers=headers, json=self.batch) as response:
+                    if response.status != 200:
+                        print(f"Failed to send batch to axiom: {response.status}")
+                # else:
+                    # print("Batch sent successfully")
+
+        if self.args.pgconn:
+            try:
+                async with self.pg_pool.acquire() as conn:
+                    cur = conn.cursor()
+                    await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        execute_values,
+                        cur,
+                        f"INSERT INTO {self.args.pgtable} (data) VALUES %s",
+                        [(json.dumps(record),) for record in self.batch]
+                    )
+                    conn.commit()
+                    cur.close()
+            except Exception as e:
+                print(f"Failed to send batch to PostgreSQL: {e}")
+
         self.batch = []
 
 # Load configuration from config.json
 def load_config(file_path):
     with open(file_path, 'r') as file:
         config = json.load(file)
-    return config
-
-# Load AXIOM_DATASET, AXIOM_API_KEY, and HTTP_BATCH_SIZE from axiom_config.yaml
-def load_axiom_config(file_path):
-    with open(file_path, 'r') as file:
-        config = yaml.safe_load(file)
     return config
 
 # Generate a random event based on the source configuration
@@ -153,16 +197,20 @@ def signal_handler(signal, frame):
 # Main function to generate events
 async def main():
     parser = argparse.ArgumentParser(description='Generate and send events.')
+    parser.add_argument('--batchsize', type=int, default='200', help='Max events to send per call')
     parser.add_argument('--config', type=str, default='config.json', help='Path to the configuration file')
+    parser.add_argument('--axiom-api-key', type=str, default='', help='Axion key (only send to axiom if provided)')
+    parser.add_argument('--axiom-dataset', type=str, default='supervent', help='Name of an Axiom dataset to send events via HTTP for ingest')
+    parser.add_argument('--pgconn', type=str, default='', help='PostgreSQL connect string')
+    parser.add_argument('--pgtable', type=str, default='supervent', help='PostgreSQL destination table')
     args = parser.parse_args()
+    if args.axiom_api_key == '' and args.pgconn == '':
+        print("must provide a destination, either --axiom-api-key or --pgconn")
+        sys.exit(1)
 
     config = load_config(args.config)
-    axiom_config = load_axiom_config('axiom_config.yaml')
-    dataset = axiom_config['AXIOM_DATASET']
-    api_key = axiom_config['AXIOM_API_KEY']
-    batch_size = int(axiom_config.get('HTTP_BATCH_SIZE', DEFAULT_BATCH_SIZE))
     global event_generator
-    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size)
+    event_generator = EventGenerator(args)
 
     # Set up signal handling to gracefully exit on ^C or kill signal
     signal.signal(signal.SIGINT, signal_handler)
