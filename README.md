@@ -6,9 +6,11 @@ There is a Python version and a Go version. They do the same thing.
 
 # Usage
 Python version:
+
 python supervent.py [--config filename.json] 
 
 Go version:
+
 supervent [--config filename.json]
 
 The default configuration file is config.json.
