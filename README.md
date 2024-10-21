@@ -4,7 +4,7 @@ A synthetic log generator that produces high volumes of realistic log events. Ev
 
 There is a Python version and a Go version. They do the same thing. 
 
-#Usage
+# Usage
 Python version:
 python supervent.py [--config filename.json] 
 
