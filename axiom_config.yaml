@@ -1,5 +1,5 @@
 
-# Mame of an Axiom dataset to send events via HTTP for ingest
+# Name of an Axiom dataset to send events via HTTP for ingest
 # You can sign up for a free Axiom account at https://axiom.co
 AXIOM_DATASET: supervent
 # This is not a valid Axiom key, but it's what they look like.
