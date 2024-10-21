@@ -1,12 +1,11 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"math/rand"
 	"net/http"
@@ -17,338 +16,245 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/mroth/weightedrand"
+	"gopkg.in/yaml.v2"
 )
 
-// Default batch size
-const DEFAULT_BATCH_SIZE = 200
+const (
+	DEFAULT_BATCH_SIZE = 100
+)
 
-// Configuration
 type Config struct {
-	AxiomDataset string
-	AxiomAPIKey  string
-	BatchSize    int
+	Sources []SourceConfig `json:"sources"`
 }
 
-// Sample Data
-var hostnames, ipAddresses, macAddresses, oracleUsernames, oracleActions []string
-
-// Precomputed Choices
-var precomputedHostnames, precomputedIPAddresses, precomputedMacAddresses, precomputedOracleUsernames, precomputedOracleActions, precomputedGPActions []string
-
-// User Agents and Weights
-var userAgents = []string{
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
-	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-	"Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/16.16299",
-	"Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Mobile Safari/537.36",
-	"Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-	"Mozilla/5.0 (Linux; Android 10; SAMSUNG SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/12.0 Chrome/79.0.3945.136 Mobile Safari/537.36",
+type SourceConfig struct {
+	Name            string           `json:"name"`
+	Vendor          string           `json:"vendor"`
+	EventFormat     string           `json:"event_format"`
+	TimestampFormat string           `json:"timestamp_format"`
+	Fields          map[string]Field `json:"fields"`
 }
-var userAgentWeights = []uint{30, 15, 10, 15, 5, 20, 15, 5}
 
-// Weighted Random Generators
-var userAgentChooser *weightedrand.Chooser
-
-// Burst Mode and Burst Count
-var burstMode int
-var burstCount int
-
-// Define Great Plains actions
-var gp_actions = []string{"login", "search", "view_product", "add_to_cart", "purchase", "logout"}
-
-// Define Customer Journey Actions and Weights
-var customerJourneyActions = []string{"search", "view_product", "add_to_cart", "purchase"}
-var customerJourneyWeights = []uint{40, 30, 20, 10}
-
-// Define Service Names and Weights
-var serviceNames = []string{
-	"auth-service", "search-service", "payment-service", "user-service",
-	"inventory-service", "order-service", "oracle-service", "gp-service",
+type Field struct {
+	Type        string      `json:"type"`
+	Formats     []string    `json:"formats,omitempty"`
+	Constraints Constraints `json:"constraints,omitempty"`
 }
-var serviceNameWeights = []uint{5, 5, 5, 50, 5, 5, 2, 2}
 
-// Define Search Terms and Weights
-var searchTerms = []string{"shoes", "laptop", "phone", "book", "clothes", "Apple", "Tesla", "iPhone", "Galaxy"}
-var searchTermWeights = []uint{100, 50, 33, 25, 20, 17, 14, 12, 10}
+type Constraints struct {
+	Min           string   `json:"min,omitempty"`
+	Max           string   `json:"max,omitempty"`
+	AllowedValues []string `json:"allowed_values,omitempty"`
+}
 
-// Initialize weighted random choosers
-func init() {
-	rand.Seed(time.Now().UnixNano())
+type AxiomConfig struct {
+	APIKey        string `yaml:"AXIOM_API_KEY"`
+	Dataset       string `yaml:"AXIOM_DATASET"`
+	HTTPBatchSize int    `yaml:"HTTP_BATCH_SIZE,omitempty"`
+}
 
-	// Initialize weighted random chooser for user agents
-	choices := make([]weightedrand.Choice, len(userAgents))
-	for i, ua := range userAgents {
-		choices[i] = weightedrand.Choice{Item: ua, Weight: userAgentWeights[i]}
-	}
-	var err error
-	userAgentChooser, err = weightedrand.NewChooser(choices...)
+func loadConfig(filePath string) (Config, error) {
+	var config Config
+	file, err := os.ReadFile(filePath)
 	if err != nil {
-		log.Fatalf("Failed to create weighted random chooser: %v", err)
+		return config, err
 	}
+	err = json.Unmarshal(file, &config)
+	return config, err
 }
 
-// Read configuration from file
-func readConfig(filePath string) Config {
-	file, err := os.Open(filePath)
+func loadAxiomConfig(filePath string) (AxiomConfig, error) {
+	var config AxiomConfig
+	file, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Fatalf("Failed to open config file: %v", err)
+		return config, err
 	}
-	defer file.Close()
-
-	config := Config{
-		BatchSize: DEFAULT_BATCH_SIZE, // Use default BatchSize
-	}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		key, value := parts[0], parts[1]
-		switch key {
-		case "AXIOM_DATASET":
-			config.AxiomDataset = value
-		case "AXIOM_API_KEY":
-			config.AxiomAPIKey = value
-		case "BATCH_SIZE":
-			config.BatchSize, _ = strconv.Atoi(value)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("Failed to read config file: %v", err)
-	}
-	return config
+	err = yaml.Unmarshal(file, &config)
+	return config, err
 }
 
-// Read sample data from file
-func readSampleData(filePath string) []string {
-	file, err := os.Open(filePath)
+func generateEvent(source SourceConfig) map[string]interface{} {
+	event := map[string]interface{}{"source": source.Vendor}
+	for field, details := range source.Fields {
+		switch details.Type {
+		case "datetime":
+			switch source.TimestampFormat {
+			case "UTC":
+				event[field] = time.Now().UTC().Format(details.Formats[0])
+			case "ISO":
+				event[field] = time.Now().Format(time.RFC3339)
+			case "Unix":
+				event[field] = time.Now().Unix()
+			case "RFC3339":
+				event[field] = time.Now().Format(time.RFC3339)
+			default:
+				event[field] = time.Now().Format(source.TimestampFormat)
+			}
+		case "string":
+			if len(details.Constraints.AllowedValues) > 0 {
+				event[field] = details.Constraints.AllowedValues[rand.Intn(len(details.Constraints.AllowedValues))]
+			} else {
+				if field == "message" {
+					if len(details.Formats) > 0 {
+						selectedFormat := details.Formats[rand.Intn(len(details.Formats))]
+						event[field] = strings.TrimSpace(selectedFormat)
+					} else {
+						event[field] = "No message format available"
+					}
+				} else {
+					event[field] = generateRandomUsername()
+				}
+			}
+		case "int":
+			min := 0
+			max := 100
+			if details.Constraints.Min != "" {
+				min, _ = strconv.Atoi(details.Constraints.Min)
+			}
+			if details.Constraints.Max != "" {
+				max, _ = strconv.Atoi(details.Constraints.Max)
+			}
+			event[field] = rand.Intn(max-min) + min
+		}
+	}
+	return event
+}
+
+// Removed unused function generateRandomIPAddress
+
+func generateRandomUsername() string {
+	usernames := []string{
+		"john_doe", "jane_smith", "mohamed_ali", "li_wei", "maria_garcia",
+		"yuki_tanaka", "olga_petrov", "raj_kumar", "fatima_zahra", "chen_wang",
+		"ahmed_hassan", "isabella_rossi", "david_jones", "sophia_martinez", "emily_clark",
+		"noah_brown", "mia_wilson", "lucas_miller", "oliver_davis", "ava_moore",
+		"ethan_taylor", "amelia_anderson", "james_thomas", "harper_jackson", "benjamin_white",
+		"liam_johnson", "emma_rodriguez", "william_lee", "sophia_kim", "mason_martin",
+		"elijah_hernandez", "logan_lopez", "alexander_gonzalez", "sebastian_perez", "daniel_hall",
+		"matthew_young", "henry_king", "jack_wright", "levi_scott", "isaac_green",
+		"gabriel_baker", "julian_adams", "jayden_nelson", "lucas_carter", "anthony_mitchell",
+		"grayson_perez", "dylan_roberts", "leo_turner", "jaxon_phillips", "asher_campbell",
+		"ananya_sharma", "arjun_patel", "priya_singh", "vikram_gupta", "neha_verma",
+		"sanjay_rana", "deepika_kapoor", "ravi_mehta", "sara_khan", "manoj_joshi",
+		"željko_ivanović", "šime_šarić", "đorđe_đorđević", "čedomir_čolić", "žana_živković",
+		"miloš_milošević", "ana_marija", "ivan_ivanov", "petar_petrov", "nikola_nikolić",
+		"marta_novak", "katarina_kovač", "tomaž_tomažič", "matej_matejić", "vanja_vuković",
+		"dragana_dimitrijević", "bojan_bojović", "milica_milovanović", "stefan_stefanović", "vanja_vasić",
+		"igor_ilić", "jelena_jovanović", "marko_marković", "tanja_tomić", "zoran_zorić",
+	}
+
+	// Generate weights using Zipf's law
+	weights := make([]float64, len(usernames))
+	s := 1.07 // Zipf's law parameter
+	for i := range weights {
+		weights[i] = 1.0 / math.Pow(float64(i+1), s)
+	}
+
+	// Normalize weights
+	totalWeight := 0.0
+	for _, weight := range weights {
+		totalWeight += weight
+	}
+	for i := range weights {
+		weights[i] /= totalWeight
+	}
+
+	// Select a username based on the weights
+	r := rand.Float64()
+	for i, weight := range weights {
+		r -= weight
+		if r <= 0 {
+			return usernames[i]
+		}
+	}
+	return usernames[len(usernames)-1]
+}
+
+func sendBatch(events []map[string]interface{}, dataset, apiKey string) error {
+	url := fmt.Sprintf("https://api.axiom.co/v1/datasets/%s/ingest", dataset)
+	//fmt.Println("Sending batch of", len(events), "events to", url, "key", apiKey)
+	body, err := json.Marshal(events)
 	if err != nil {
-		log.Fatalf("Failed to open sample data file: %v", err)
+		return err
 	}
-	defer file.Close()
-
-	var data []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		data = append(data, scanner.Text())
-	}
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("Failed to read sample data file: %v", err)
-	}
-	return data
-}
-
-// Generate a random log record
-func generateLogRecord() map[string]interface{} {
-	timestamp := time.Now().Unix()
-	record := map[string]interface{}{
-		"timestamp":   time.Unix(timestamp, 0).Format(time.RFC3339),
-		"_time":       timestamp,
-		"user_id":     generateZipfianUserID(20000),
-		"level":       randomChoice([]string{"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}, []uint{10, 50, 20, 15, 5}),
-		"protocol":    randomChoice([]string{"HTTP", "HTTPS", "FTP", "SSH"}, []uint{50, 40, 5, 5}),
-		"source_port": rand.Intn(65535-1024) + 1024,
-		"dest_port":   randomChoice([]int{80, 443, 21, 22}, []uint{50, 40, 5, 5}),
-		"packet_size": rand.Intn(1500-64) + 64,
-		"duration":    round(rand.Float64()*9.9+0.1, 2),
-		"bytes_xferd": rand.Intn(1000000-100) + 100,
-		"source_ip":   randomChoice(precomputedIPAddresses, nil),
-		"dest_ip":     randomChoice(precomputedIPAddresses, nil),
-		"user_agent":  userAgentChooser.Pick().(string),
-		"http_stat":   generateHTTPStatusCode(),
-	}
-	if rand.Intn(10) == 0 {
-		record["trace_id"] = uuid.New().String()
-		record["span_id"] = uuid.New().String()
-	}
-	if rand.Intn(2) == 0 {
-		record["service_name"] = randomChoice(serviceNames, serviceNameWeights)
-	}
-	if record["service_name"] == "user-service" {
-		record["timestamp"] = time.Unix(timestamp, 0).Format("2006-01-02 15:04:05")
-	}
-	if rand.Intn(2) == 0 {
-		record["custom_host_name"] = randomChoice(precomputedHostnames, nil)
-	}
-	if rand.Intn(2) == 0 {
-		record["http_method"] = randomChoice([]string{"GET", "POST", "PUT", "DELETE"}, nil)
-		record["http_url"] = randomChoice([]string{"/api/v1/resource", "/api/v1/resource/1", "/api/v1/resource/2", "/api/v1/login", "/api/v1/logout", "/api/v1/search", "/api/v1/purchase"}, nil)
-	}
-	if record["service_name"] == "oracle-service" {
-		record["oracle_username"] = randomChoice(precomputedOracleUsernames, nil)
-		record["oracle_action"] = randomChoice(precomputedOracleActions, nil)
-	}
-	if record["service_name"] == "gp-service" {
-		record["gp_action"] = randomChoice(precomputedGPActions, nil)
-	}
-	// Add customer journey actions
-	if record["service_name"] == "user-service" {
-		action := randomChoice(customerJourneyActions, customerJourneyWeights).(string)
-		record["action"] = action
-		if action == "search" {
-			record["search_term"] = randomChoice(searchTerms, searchTermWeights).(string)
-		} else if action == "view_product" {
-			record["product_id"] = rand.Intn(10000)
-		} else if action == "add_to_cart" {
-			record["product_id"] = rand.Intn(10000)
-			record["quantity"] = rand.Intn(5) + 1
-		} else if action == "purchase" {
-			record["order_id"] = uuid.New().String()
-			record["total_amount"] = round(rand.Float64()*100+10, 2)
-		}
-	}
-	fmt.Println(record["timestamp"])
-	return record
-}
-
-// Generate a Zipfian user ID
-func generateZipfianUserID(maxID int) int64 {
-	rank := rand.Float64()*(1.0-1e-10) + 1e-10 // Ensure rank is never zero
-	return int64(float64(maxID) / math.Pow(rank, 1.5))
-}
-
-// Generate HTTP status codes with clustering
-func generateHTTPStatusCode() int {
-	if burstMode == 0 || burstCount <= 0 {
-		burstMode = randomChoice([]int{200, 301, 404, 500}, []uint{300, 5, 4, 1}).(int)
-		burstCount = rand.Intn(10) + 1
-	}
-	burstCount--
-	return burstMode
-}
-
-// Round a float to a specified number of decimal places
-func round(val float64, places int) float64 {
-	shift := math.Pow(10, float64(places))
-	return math.Floor(val*shift+0.5) / shift
-}
-
-// Random choice with optional weights
-func randomChoice(choices interface{}, weights []uint) interface{} {
-	switch v := choices.(type) {
-	case []string:
-		if weights == nil {
-			return v[rand.Intn(len(v))]
-		}
-		choices := make([]weightedrand.Choice, len(v))
-		for i, choice := range v {
-			choices[i] = weightedrand.Choice{Item: choice, Weight: weights[i]}
-		}
-		chooser, err := weightedrand.NewChooser(choices...)
-		if err != nil {
-			log.Fatalf("Failed to create weighted random chooser: %v", err)
-		}
-		return chooser.Pick().(string)
-	case []int:
-		if weights == nil {
-			return v[rand.Intn(len(v))]
-		}
-		choices := make([]weightedrand.Choice, len(v))
-		for i, choice := range v {
-			choices[i] = weightedrand.Choice{Item: choice, Weight: weights[i]}
-		}
-		chooser, err := weightedrand.NewChooser(choices...)
-		if err != nil {
-			log.Fatalf("Failed to create weighted random chooser: %v", err)
-		}
-		return chooser.Pick().(int)
-	default:
-		return nil
-	}
-}
-
-// Send batch of log records to Axiom
-func sendBatch(records []map[string]interface{}, config Config) {
-	url := fmt.Sprintf("https://api.axiom.co/v1/datasets/%s/ingest", config.AxiomDataset)
-	jsonData, err := json.Marshal(records)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
-		log.Fatalf("Failed to marshal records: %v", err)
-	}
-
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
+		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", config.AxiomAPIKey))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to send request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to send batch: %s", body)
+		return fmt.Errorf("failed to send batch: %s", resp.Status)
 	}
+	return nil
 }
 
 func main() {
-	config := readConfig("axiom_config.txt")
+	// Define the --config flag
+	configPath := flag.String("config", "config.json", "Path to the configuration file")
+	flag.Parse()
 
-	// Read sample data
-	hostnames = readSampleData("../eventgen/samples/hostname.sample")
-	ipAddresses = readSampleData("../eventgen/samples/ip_address.sample")
-	macAddresses = readSampleData("../eventgen/samples/mac_address.sample")
-	oracleUsernames = readSampleData("../eventgen/samples/oracleUserNames.sample")
-	oracleActions = readSampleData("../eventgen/samples/oracle11.action.sample")
-
-	// Print the value of BatchSize
-	fmt.Println("BatchSize:", config.BatchSize)
-
-	// Precompute random choices
-	precomputedHostnames = make([]string, 1000)
-	precomputedIPAddresses = make([]string, 1000)
-	precomputedMacAddresses = make([]string, 1000)
-	precomputedOracleUsernames = make([]string, 1000)
-	precomputedOracleActions = make([]string, 1000)
-	precomputedGPActions = make([]string, 1000)
-	for i := 0; i < 1000; i++ {
-		precomputedHostnames[i] = hostnames[rand.Intn(len(hostnames))]
-		precomputedIPAddresses[i] = ipAddresses[rand.Intn(len(ipAddresses))]
-		precomputedMacAddresses[i] = macAddresses[rand.Intn(len(macAddresses))]
-		precomputedOracleUsernames[i] = oracleUsernames[rand.Intn(len(oracleUsernames))]
-		precomputedOracleActions[i] = oracleActions[rand.Intn(len(oracleActions))]
-		precomputedGPActions[i] = gp_actions[rand.Intn(len(gp_actions))]
+	// Load the configuration file
+	config, err := loadConfig(*configPath)
+	if err != nil {
+		fmt.Println("Error loading config:", err)
+		return
 	}
 
-	// Set up signal handling
+	// Load the Axiom configuration
+	axiomConfig, err := loadAxiomConfig("axiom_config.yaml")
+	if err != nil {
+		fmt.Println("Error loading Axiom config:", err)
+		return
+	}
+
+	batchSize := DEFAULT_BATCH_SIZE
+	if axiomConfig.HTTPBatchSize > 0 {
+		batchSize = axiomConfig.HTTPBatchSize
+	}
+
+	var allEvents []map[string]interface{}
+
+	// Set up signal handling to gracefully exit on ^C
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Generate and send log records
-	records := make([]map[string]interface{}, 0, config.BatchSize)
-	done := make(chan bool)
-
-	go func() {
-		for {
-			record := generateLogRecord()
-			records = append(records, record)
-			if len(records) >= config.BatchSize {
-				sendBatch(records, config)
-				records = records[:0]
-			}
-			time.Sleep(1 * time.Millisecond) // Simulate some delay between events
-		}
-	}()
-
-	// Wait for termination signal
 	go func() {
 		<-sigChan
-		fmt.Println("Termination signal received. Sending remaining batch...")
-		if len(records) > 0 {
-			sendBatch(records, config)
+		fmt.Println("Received interrupt signal, sending remaining events...")
+		if len(allEvents) > 0 {
+			err = sendBatch(allEvents, axiomConfig.Dataset, axiomConfig.APIKey)
+			if err != nil {
+				fmt.Println("Error sending batch:", err)
+			} else {
+				// fmt.Println("Batch sent successfully")
+			}
 		}
-		done <- true
+		os.Exit(0)
 	}()
 
-	<-done
+	// Generate events in a round-robin fashion indefinitely
+	for {
+		for _, source := range config.Sources {
+			event := generateEvent(source)
+			allEvents = append(allEvents, event)
+			if len(allEvents) >= batchSize {
+				err = sendBatch(allEvents, axiomConfig.Dataset, axiomConfig.APIKey)
+				if err != nil {
+					fmt.Println("Error sending batch:", err)
+				} else {
+					// fmt.Println("Batch sent successfully")
+				}
+				allEvents = allEvents[:0] // Clear the slice
+			}
+		}
+	}
 }
