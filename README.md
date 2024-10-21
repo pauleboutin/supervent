@@ -1,6 +1,6 @@
 # supervent
 
-A synthetic log generator that produces high volumes of realistic log events. Event formats are configured in config.json to mimic various sources. 
+A synthetic log generator that produces high volumes of realistic log events. Event formats for various sources (an app server, Akamai, etc) are configured in config.json. Behavior of these configured sources will be controlled by defining scenarios (even "normal traffic" is just another scenario) that can be overlaid to simulate real-world patterns, e.g. an outage, Black Friday, a suspicious user, etc. For now, supervent just round-robins through its sources, and adds an extra key-value pair of the form "source: Cisco ASA Firewall" to each event because it's still in testing.
 
 There is a Python version and a Go version. They do the same thing. 
 
@@ -20,10 +20,10 @@ For now, supervent sends events to an Axiom dataset configured in axiom_config.y
 # Roadmap
 This is Phase I of the project. For now I am focused on creating realistic events. I am not an expert at event formats. Corrections and additions are welcome, whether submitted as config file entries or sent to me to deal with myself.
 
-Phase II will add behavioral config & control to make each source behave as desired, and to orchestrate patterns across the entire simulated network. Normal traffic will be a defined pattern. You'll be able to overlay pattern configurations to inject scenarios. Phase II will almost surely involve use of an LLM to do the complex, nuanced control of sources. It's important, though, that there's a hard line between control and event-writing. There'll be no way for an AI to accidentally leak personal or company-confidential training data into the event stream. 
+Phase II will add behavioral config & control to make each source behave as desired, and to orchestrate patterns across the entire simulated network. Scenarios will be prompts to an LLM that generates the behavioral configurations for the sources with which supervent has been configured. To be 100% clear, all event texts will be generated from scratch by supervent code. There'll be no way for an AI to accidentally leak personal or company-confidential info from its training data into the event stream.
 
 # Disclosure
-I am a 50% part-time consultant to Axiom (axiom.co), for whom I write customer stories and edit blog posts and other short texts as part of their marketing efforts. This is my own free-time project.
+I am a 50% part-time consultant to Axiom (axiom.co), for whom I write marketing stuff. This is my own free-time project.
 
 Paul Boutin
 boutin@gmail.com
