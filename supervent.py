@@ -10,47 +10,22 @@ import yaml
 import argparse
 import signal
 import sys
+import numpy as np
 import psycopg2
-from psycopg2.extras import execute_values
-from psycopg2.pool import SimpleConnectionPool
-from contextlib import asynccontextmanager
 
 DEFAULT_BATCH_SIZE = 100
 
-class AsyncPgPool:
-    def __init__(self, dsn, min_size=1, max_size=10):
-        self.pool = SimpleConnectionPool(min_size, max_size, dsn)
-        self._loop = asyncio.get_event_loop()
-        
-    @asynccontextmanager
-    async def acquire(self):
-        conn = await self._loop.run_in_executor(None, self.pool.getconn)
-        try:
-            yield conn
-        finally:
-            await self._loop.run_in_executor(None, self.pool.putconn, conn)
-
 class EventGenerator:
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE, postgres_config=None):
+        self.dataset = dataset
+        self.api_key = api_key
+        self.url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
+        self.batch_size = batch_size
         self.batch = []
-        self.axiom_url = f"https://api.axiom.co/v1/datasets/{args.axiom_dataset}/ingest"
-        if self.args.pgconn:
-            self.pg_pool = AsyncPgPool(self.args.pgconn)
-            asyncio.create_task(self.setup_postgres())
-
-    async def setup_postgres(self):
-        async with self.pg_pool.acquire() as conn:
-            cur = conn.cursor()
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS {self.args.pgtable} (
-                    id SERIAL PRIMARY KEY,
-                    data JSONB,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-            cur.close()
+        self.postgres_config = postgres_config
+        if postgres_config:
+            self.conn = psycopg2.connect(**postgres_config)
+            self.cursor = self.conn.cursor()
 
     async def emit(self, record):
         # Strip "custom." prefix from keys
@@ -59,43 +34,34 @@ class EventGenerator:
         stripped_record['_time'] = datetime.now(timezone.utc).isoformat()
 
         self.batch.append(stripped_record)
-        if len(self.batch) >= self.args.batchsize:
+        if len(self.batch) >= self.batch_size:
             await self.send_batch()
 
     async def send_batch(self):
         if not self.batch:
             return
-
-        if self.args.axiom_api_key != '':
-            # print("sending batch")
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.args.axiom_api_key}"
-            }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.axiom_url, headers=headers, json=self.batch) as response:
-                    if response.status != 200:
-                        print(f"Failed to send batch to axiom: {response.status}")
-                # else:
-                    # print("Batch sent successfully")
-
-        if self.args.pgconn:
-            try:
-                async with self.pg_pool.acquire() as conn:
-                    cur = conn.cursor()
-                    await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        execute_values,
-                        cur,
-                        f"INSERT INTO {self.args.pgtable} (data) VALUES %s",
-                        [(json.dumps(record),) for record in self.batch]
-                    )
-                    conn.commit()
-                    cur.close()
-            except Exception as e:
-                print(f"Failed to send batch to PostgreSQL: {e}")
-
+        print("sending batch")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        async with aiohttp.ClientSession() as session:
+            async with session.post(self.url, headers=headers, json=self.batch) as response:
+                if response.status != 200:
+                    print(f"Failed to send batch: {response.status}")
+                else:
+                    print("Batch sent successfully")
+        if self.postgres_config:
+            self.send_to_postgres(self.batch)
         self.batch = []
+
+    def send_to_postgres(self, batch):
+        for record in batch:
+            columns = record.keys()
+            values = [record[column] for column in columns]
+            insert_statement = f"INSERT INTO {self.dataset} ({', '.join(columns)}) VALUES %s"
+            self.cursor.execute(insert_statement, (tuple(values),))
+        self.conn.commit()
 
 # Load configuration from config.json
 def load_config(file_path):
@@ -119,8 +85,11 @@ def generate_event(source_config):
             else:
                 event[field] = datetime.now().strftime(source_config['timestamp_format'])
         elif details['type'] == 'string':
-            if 'constraints' in details and 'allowed_values' in details['constraints']:
-                event[field] = random.choice(details['constraints']['allowed_values'])
+            if 'allowed_values' in details:
+                if 'weights' in details:
+                    event[field] = random.choices(details['allowed_values'], weights=details['weights'])[0]
+                else:
+                    event[field] = random.choice(details['allowed_values'])
             else:
                 if field == "message":
                     if 'formats' in details:
@@ -141,10 +110,30 @@ def generate_event(source_config):
                 else:
                     event[field] = generate_random_username() if field == "user" else generate_random_ip_address()
         elif details['type'] == 'int':
-            min_val = int(details.get('constraints', {}).get('min', 0))
-            max_val = int(details.get('constraints', {}).get('max', 100))
-            event[field] = random.randint(min_val, max_val)
-        # Add more types as needed
+            if 'distribution' in details:
+                if details['distribution'] == 'uniform':
+                    event[field] = random.randint(details['constraints']['min'], details['constraints']['max'])
+                elif details['distribution'] == 'normal':
+                    mean = details.get('mean', 0)
+                    stddev = details.get('stddev', 1)
+                    event[field] = int(np.random.normal(mean, stddev))
+                elif details['distribution'] == 'exponential':
+                    lam = details.get('lambda', 1)
+                    event[field] = int(np.random.exponential(1/lam))
+                elif details['distribution'] == 'zipfian':
+                    s = details.get('s', 1.07)
+                    event[field] = int(np.random.zipf(s))
+                elif details['distribution'] == 'long_tail':
+                    alpha = details.get('alpha', 1.5)
+                    event[field] = int(np.random.pareto(alpha))
+                elif details['distribution'] == 'random':
+                    event[field] = random.randint(details['constraints']['min'], details['constraints']['max'])
+            else:
+                min_val = int(details.get('constraints', {}).get('min', 0))
+                max_val = int(details.get('constraints', {}).get('max', 100))
+                event[field] = random.randint(min_val, max_val)
+        # Add more types and distributions as needed
+    print(event)  # Debug statement to print the complete event
     return event
 
 # Generate a random IP address
@@ -197,20 +186,34 @@ def signal_handler(signal, frame):
 # Main function to generate events
 async def main():
     parser = argparse.ArgumentParser(description='Generate and send events.')
-    parser.add_argument('--batchsize', type=int, default='200', help='Max events to send per call')
     parser.add_argument('--config', type=str, default='config.json', help='Path to the configuration file')
-    parser.add_argument('--axiom-api-key', type=str, default='', help='Axion key (only send to axiom if provided)')
-    parser.add_argument('--axiom-dataset', type=str, default='supervent', help='Name of an Axiom dataset to send events via HTTP for ingest')
-    parser.add_argument('--pgconn', type=str, default='', help='PostgreSQL connect string')
-    parser.add_argument('--pgtable', type=str, default='supervent', help='PostgreSQL destination table')
+    parser.add_argument('--dataset', type=str, required=True, help='Axiom dataset name')
+    parser.add_argument('--api_key', type=str, required=True, help='Axiom API key')
+    parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
+    parser.add_argument('--postgres_host', type=str, help='PostgreSQL host')
+    parser.add_argument('--postgres_port', type=int, help='PostgreSQL port')
+    parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
+    parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
+    parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
     args = parser.parse_args()
-    if args.axiom_api_key == '' and args.pgconn == '':
-        print("must provide a destination, either --axiom-api-key or --pgconn")
-        sys.exit(1)
 
     config = load_config(args.config)
+    dataset = args.dataset
+    api_key = args.api_key
+    batch_size = args.batch_size
+
+    postgres_config = None
+    if args.postgres_host and args.postgres_port and args.postgres_db and args.postgres_user and args.postgres_password:
+        postgres_config = {
+            'host': args.postgres_host,
+            'port': args.postgres_port,
+            'dbname': args.postgres_db,
+            'user': args.postgres_user,
+            'password': args.postgres_password
+        }
+
     global event_generator
-    event_generator = EventGenerator(args)
+    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size, postgres_config=postgres_config)
 
     # Set up signal handling to gracefully exit on ^C or kill signal
     signal.signal(signal.SIGINT, signal_handler)

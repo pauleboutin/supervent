@@ -1,570 +1,431 @@
 {
   "sources": [
     {
-      "name": "source1",
-      "vendor": "Akamai Kona Site Defender",
-      "event_format": "timestamp, client_ip, server_ip, request_method, url, status_code, bytes_sent",
-      "timestamp_format": "RFC3339",
+      "vendor": "F5 Networks BIG-IP",
+      "timestamp_format": "UTC",
       "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
+        "action": {
+          "type": "string",
+          "allowed_values": ["ALLOW", "DENY", "BLOCK"],
+          "weights": [0.6, 0.3, 0.1]
+        },
+        "response_time": {
+          "type": "int",
           "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
+            "min": 1,
+            "max": 2000
+          },
+          "distribution": "normal",
+          "mean": 500,
+          "stddev": 100
         },
         "client_ip": {
           "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
+          "format": "ip"
         },
         "server_ip": {
           "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "request_method": {
+          "format": "ip"
+        }
+      }
+    },
+    {
+      "vendor": "Cisco ASA Firewall",
+      "timestamp_format": "ISO",
+      "fields": {
+        "action": {
           "type": "string",
-          "constraints": {
-            "allowed_values": ["GET", "POST", "PUT", "DELETE"]
-          }
+          "allowed_values": ["ALLOW", "DENY", "BLOCK"],
+          "weights": [0.5, 0.4, 0.1]
         },
-        "url": {
+        "response_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 3000
+          },
+          "distribution": "exponential",
+          "lambda": 0.005
+        },
+        "source_ip": {
           "type": "string",
-          "constraints": {
-            "max_length": "2048"
-          }
+          "format": "ip"
         },
+        "destination_ip": {
+          "type": "string",
+          "format": "ip"
+        }
+      }
+    },
+    {
+      "vendor": "Apache HTTP Server",
+      "timestamp_format": "Unix",
+      "fields": {
         "status_code": {
           "type": "int",
           "constraints": {
-            "min": "100",
-            "max": "599"
-          }
+            "min": 100,
+            "max": 599
+          },
+          "distribution": "uniform"
         },
-        "bytes_sent": {
+        "response_time": {
           "type": "int",
           "constraints": {
-            "min": "0",
-            "max": "1000000"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source2",
-      "vendor": "Bluecoat ProxySG",
-      "event_format": "timestamp, source_ip, destination_ip, action, url, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
+            "min": 1,
+            "max": 5000
+          },
+          "distribution": "zipfian",
+          "s": 1.2
         },
-        "source_ip": {
+        "client_ip": {
           "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
+          "format": "ip"
         },
-        "destination_ip": {
+        "request_method": {
           "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "url": {
-          "type": "string",
-          "constraints": {
-            "max_length": "2048"
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source3",
-      "vendor": "Checkpoint Firewall",
-      "event_format": "timestamp, source_ip, destination_ip, action, service, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "source_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "destination_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "service": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source4",
-      "vendor": "Bitdefender GravityZone",
-      "event_format": "timestamp, user, action, file_path, status",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["SCAN_STARTED", "SCAN_COMPLETED", "SCAN_FAILED"]
-          }
-        },
-        "file_path": {
-          "type": "string",
-          "constraints": {
-            "max_length": "4096"
-          }
-        },
-        "status": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["CLEAN", "INFECTED", "QUARANTINED"]
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source5",
-      "vendor": "Abnormal Security Platform",
-      "event_format": "timestamp, source_ip, anomaly_score, description",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "source_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "anomaly_score": {
-          "type": "float",
-          "constraints": {
-            "min": "0.0",
-            "max": "1.0"
-          }
-        },
-        "description": {
-          "type": "string",
-          "constraints": {
-            "max_length": "1024"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source6",
-      "vendor": "Cisco ASA Firewall",
-      "event_format": "timestamp, src_ip, dst_ip, action, service, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "service": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source7",
-      "vendor": "Juniper SRX Series",
-      "event_format": "timestamp, src_ip, dst_ip, action, service, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["PERMIT", "DENY"]
-          }
-        },
-        "service": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source8",
-      "vendor": "Palo Alto Networks NGFW",
-      "event_format": "timestamp, src_ip, dst_ip, action, application, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "application": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["web-browsing", "ssl", "ftp", "ssh"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source9",
-      "vendor": "Fortinet FortiGate",
-      "event_format": "timestamp, src_ip, dst_ip, action, service, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "service": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source10",
-      "vendor": "F5 Networks BIG-IP",
-      "event_format": "timestamp, src_ip, dst_ip, action, service, user",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ipv4",
-          "constraints": {
-            "pattern": "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$"
-          }
-        },
-        "action": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["ALLOW", "DENY"]
-          }
-        },
-        "service": {
-          "type": "string",
-          "constraints": {
-            "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"]
-          }
-        },
-        "user": {
-          "type": "string",
-          "constraints": {
-            "pattern": "^[a-zA-Z0-9_-]{3,16}$"
-          }
-        }
-      },
-      "patterns": {
-        "distribution": "uniform"
-      }
-    },
-    {
-      "name": "source11",
-      "vendor": "Cisco ASA Firewall",
-      "event_format": "timestamp, message",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "message": {
-          "type": "string",
-          "format": "Oct 20 16:48:00 firewall1 %ASA-6-305011: Built inbound TCP connection 123456 for outside:{src_ip}/12345 ({src_ip}/12345) to inside:{dst_ip}/80"
+          "allowed_values": ["GET", "POST", "PUT", "DELETE"],
+          "weights": [0.7, 0.2, 0.05, 0.05]
         }
       }
     },
     {
-      "name": "source12",
-      "vendor": "Apache HTTP Server",
-      "event_format": "timestamp, message",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "2006-01-02T15:04:05Z07:00",
-          "constraints": {
-            "min": "2023-01-01T00:00:00Z",
-            "max": "2023-12-31T23:59:59Z"
-          }
-        },
-        "message": {
-          "type": "string",
-          "format": "{ip_address} - - [{timestamp}] \"GET /example/path HTTP/1.1\" 200 1024 \"-\" \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\""
-        }
-      }
-    },
- {
-  "name": "source13",
-  "vendor": "Java Application Server",
-  "event_format": "timestamp, message",
-  "timestamp_format": "RFC3339",
-  "fields": {
-    "timestamp": {
-      "type": "datetime",
-      "format": "2006-01-02T15:04:05Z07:00",
-      "constraints": {
-        "min": "2023-01-01T00:00:00Z",
-        "max": "2023-12-31T23:59:59Z"
-      }
-    },
-    "message": {
-      "type": "string",
-      "formats": [
-        "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
-        "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
-        "{timestamp} - INFO - Application started successfully"
-      ]
-    }
-  }
-} ,
-    {
-      "name": "source14",
       "vendor": "Linux SSH Server",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "login_attempts": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 10
+          },
+          "distribution": "long_tail",
+          "alpha": 2.0
+        },
+        "action": {
+          "type": "string",
+          "allowed_values": ["SUCCESS", "FAILURE"],
+          "weights": [0.8, 0.2]
+        },
+        "username": {
+          "type": "string",
+          "allowed_values": ["root", "admin", "user", "guest"],
+          "weights": [0.4, 0.3, 0.2, 0.1]
+        },
+        "source_ip": {
+          "type": "string",
+          "format": "ip"
+        }
+      }
+    },
+    {
+      "vendor": "Windows Server",
+      "timestamp_format": "UTC",
+      "fields": {
+        "event_id": {
+          "type": "int",
+          "constraints": {
+            "min": 1000,
+            "max": 5000
+          },
+          "distribution": "random"
+        },
+        "severity": {
+          "type": "string",
+          "allowed_values": ["INFO", "WARN", "ERROR", "CRITICAL"],
+          "weights": [0.5, 0.3, 0.15, 0.05]
+        },
+        "source_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
+          "weights": [0.4, 0.3, 0.2, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "MySQL Database",
+      "timestamp_format": "ISO",
+      "fields": {
+        "query_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 10000
+          },
+          "distribution": "normal",
+          "mean": 200,
+          "stddev": 50
+        },
+        "query_type": {
+          "type": "string",
+          "allowed_values": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "weights": [0.6, 0.2, 0.15, 0.05]
+        },
+        "database": {
+          "type": "string",
+          "allowed_values": ["db1", "db2", "db3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["db_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "PostgreSQL Database",
+      "timestamp_format": "Unix",
+      "fields": {
+        "query_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 8000
+          },
+          "distribution": "exponential",
+          "lambda": 0.01
+        },
+        "query_type": {
+          "type": "string",
+          "allowed_values": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "weights": [0.7, 0.1, 0.15, 0.05]
+        },
+        "database": {
+          "type": "string",
+          "allowed_values": ["db1", "db2", "db3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["db_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "Nginx Server",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "status_code": {
+          "type": "int",
+          "constraints": {
+            "min": 100,
+            "max": 599
+          },
+          "distribution": "uniform"
+        },
+        "response_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 3000
+          },
+          "distribution": "zipfian",
+          "s": 1.1
+        },
+        "client_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "request_method": {
+          "type": "string",
+          "allowed_values": ["GET", "POST", "PUT", "DELETE"],
+          "weights": [0.7, 0.2, 0.05, 0.05]
+        }
+      }
+    },
+    {
+      "vendor": "MongoDB",
+      "timestamp_format": "UTC",
+      "fields": {
+        "query_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 5000
+          },
+          "distribution": "long_tail",
+          "alpha": 1.8
+        },
+        "operation": {
+          "type": "string",
+          "allowed_values": ["find", "insert", "update", "delete"],
+          "weights": [0.5, 0.3, 0.15, 0.05]
+        },
+        "database": {
+          "type": "string",
+          "allowed_values": ["db1", "db2", "db3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["db_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "Redis",
+      "timestamp_format": "ISO",
+      "fields": {
+        "command_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 2000
+          },
+          "distribution": "normal",
+          "mean": 100,
+          "stddev": 20
+        },
+        "command": {
+          "type": "string",
+          "allowed_values": ["GET", "SET", "DEL", "EXPIRE"],
+          "weights": [0.4, 0.4, 0.1, 0.1]
+        },
+        "database": {
+          "type": "string",
+          "allowed_values": ["db1", "db2", "db3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["db_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "Elasticsearch",
+      "timestamp_format": "Unix",
+      "fields": {
+        "query_time": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 10000
+          },
+          "distribution": "exponential",
+          "lambda": 0.005
+        },
+        "query_type": {
+          "type": "string",
+          "allowed_values": ["search", "index", "update", "delete"],
+          "weights": [0.6, 0.2, 0.15, 0.05]
+        },
+        "index": {
+          "type": "string",
+          "allowed_values": ["index1", "index2", "index3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["es_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "Kafka",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "message_size": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 1000000
+          },
+          "distribution": "long_tail",
+          "alpha": 1.5
+        },
+        "topic": {
+          "type": "string",
+          "allowed_values": ["topic1", "topic2", "topic3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "partition": {
+          "type": "int",
+          "constraints": {
+            "min": 0,
+            "max": 10
+          },
+          "distribution": "uniform"
+        },
+        "key": {
+          "type": "string",
+          "allowed_values": ["key1", "key2", "key3"],
+          "weights": [0.5, 0.3, 0.2]
+        }
+      }
+    },
+    {
+      "vendor": "RabbitMQ",
+      "timestamp_format": "UTC",
+      "fields": {
+        "message_size": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 500000
+          },
+          "distribution": "zipfian",
+          "s": 1.3
+        },
+        "queue": {
+          "type": "string",
+          "allowed_values": ["queue1", "queue2", "queue3"],
+          "weights": [0.4, 0.4, 0.2]
+        },
+        "exchange": {
+          "type": "string",
+          "allowed_values": ["exchange1", "exchange2", "exchange3"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "routing_key": {
+          "type": "string",
+          "allowed_values": ["key1", "key2", "key3"],
+          "weights": [0.5, 0.3, 0.2]
+        }
+      }
+    },
+    {
+      "vendor": "Hadoop",
+      "timestamp_format": "ISO",
+      "fields": {
+        "job_duration": {
+          "type": "int",
+          "constraints": {
+            "min": 1,
+            "max": 100000
+          },
+          "distribution": "normal",
+          "mean": 5000,
+          "stddev": 1000
+        },
+        "job_type": {
+          "type": "string",
+          "allowed_values": ["mapreduce", "spark", "hive"],
+          "weights": [0.5, 0.3, 0.2]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["hadoop_user", "admin", "guest"],
+          "weights": [0.6, 0.3, 0.1]
+        },
+        "job_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    {
+      "name": "source13",
+      "vendor": "Java Application Server",
       "event_format": "timestamp, message",
       "timestamp_format": "RFC3339",
       "fields": {
@@ -578,7 +439,11 @@
         },
         "message": {
           "type": "string",
-          "format": "Oct 20 16:48:00 auth-server1 sshd[12345]: Accepted password for user from {ip_address} port 22 ssh2"
+          "formats": [
+            "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
+            "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
+            "{timestamp} - INFO - Application started successfully"
+          ]
         }
       }
     }
