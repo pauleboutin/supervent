@@ -15,7 +15,7 @@ I am a 50% part-time consultant to Axiom (axiom.co), for whom I write marketing 
 Paul Boutin
 boutin@gmail.com
 
-# How to Run it
+# Usage
 
 ## Command-Line Parameters
 
@@ -23,8 +23,7 @@ boutin@gmail.com
   - **Description**: Path to the configuration file.
   - **Type**: String
   - **Default**: config.json
-
-
+  
   - **Example**: `--config /path/to/config.json`
 
 - **--dataset**
