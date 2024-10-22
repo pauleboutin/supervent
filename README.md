@@ -4,19 +4,6 @@ A synthetic log generator that produces high volumes of realistic log events. Ev
 
 There is a Python version and a Go version. They do the same thing. 
 
-# Usage
-Python version:
-
-python supervent.py [--config filename.json] 
-
-Go version:
-
-supervent [--config filename.json]
-
-The default configuration file is config.json.
-
-For now, supervent sends events to an Axiom dataset configured in axiom_config.yaml
-
 # Roadmap
 This is Phase I of the project. For now I am focused on creating realistic events. I am not an expert at event formats. Corrections and additions are welcome, whether submitted as config file entries or sent to me to deal with myself.
 
@@ -28,23 +15,102 @@ I am a 50% part-time consultant to Axiom (axiom.co), for whom I write marketing 
 Paul Boutin
 boutin@gmail.com
 
+# How to Run it
 
-# Config file parameters
-See config.json for an extensive example.
+## Command-Line Parameters
 
-Sure, here's a comprehensive list of all the parameters that 
+- **--config**
+  - **Description**: Path to the configuration file.
+  - **Type**: String
+  - **Default**: config.json
 
-supervent.py
 
- supports in 
+  - **Example**: `--config /path/to/config.json`
 
-config.json
+- **--dataset**
+  - **Description**: Axiom dataset name.
+  - **Type**: String
+  - **Required**: Yes
+  - **Example**: `--dataset supervent`
 
-, formatted for documentation:
+- **--api_key**
+  - **Description**: Axiom API key.
+  - **Type**: String
+  - **Required**: Yes
+  - **Example**: `--api_key xaat-0e268974-2001-4c1f-a747-619dac5257f1`
 
-### Parameters Supported in 
+- **--batch_size**
+  - **Description**: Batch size for HTTP requests.
+  - **Type**: Integer
+  - **Default**: `100`
+  - **Example**: `--batch_size 50`
 
-config.json
+- **--postgres_host**
+  - **Description**: PostgreSQL host.
+  - **Type**: String
+  - **Example**: `--postgres_host localhost`
+
+- **--postgres_port**
+  - **Description**: PostgreSQL port.
+  - **Type**: Integer
+  - **Default**: `5432`
+  - **Example**: `--postgres_port 5432`
+
+- **--postgres_db**
+  - **Description**: PostgreSQL database name.
+  - **Type**: String
+  - **Example**: `--postgres_db supervent_db`
+
+- **--postgres_user**
+  - **Description**: PostgreSQL user.
+  - **Type**: String
+  - **Example**: `--postgres_user dbuser`
+
+- **--postgres_password**
+  - **Description**: PostgreSQL password.
+  - **Type**: String
+  - **Example**: `--postgres_password dbpassword`
+
+### Example Usage
+
+**To send Supervent events to an Axiom dataset**
+
+Go version
+```sh
+./supervent --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+```
+Python version
+```sh
+python ./supervent.py --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+```
+
+**To send to a PostgreSQL database**
+
+Go version
+```sh
+./supervent --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres_user dbuser --postgres_password dbpassword
+```
+Python version
+```sh
+python ./supervent.py --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres_user dbuser --postgres_password dbpassword
+```
+### Command-line arguments
+
+- **--config**: Specifies the path to the configuration file. If not provided, it defaults to config.json
+
+.
+- **--dataset**: Specifies the Axiom dataset name. This parameter is required.
+- **--api_key**: Specifies the Axiom API key. This parameter is required.
+- **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
+- **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
+- **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
+- **--postgres_db**: Specifies the PostgreSQL database name. This parameter is optional.
+- **--postgres_user**: Specifies the PostgreSQL user. This parameter is optional.
+- **--postgres_password**: Specifies the PostgreSQL password. This parameter is optional.
+
+
+## Source configuration parameters 
+For config.json or other config file
 
 - **vendor**
   - **Description**: Specifies the vendor or source of the events.
