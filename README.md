@@ -27,3 +27,133 @@ I am a 50% part-time consultant to Axiom (axiom.co), for whom I write marketing 
 
 Paul Boutin
 boutin@gmail.com
+
+
+# Config file parameters
+See config.json for an extensive example.
+
+Sure, here's a comprehensive list of all the parameters that 
+
+supervent.py
+
+ supports in 
+
+config.json
+
+, formatted for documentation:
+
+### Parameters Supported in 
+
+config.json
+
+- **vendor**
+  - **Description**: Specifies the vendor or source of the events.
+  - **Type**: String
+  - **Example Values**: `"F5 Networks BIG-IP"`
+
+- **timestamp_format**
+  - **Description**: Specifies the format of the timestamp.
+  - **Type**: String
+  - **Supported Values**: `UTC`, `ISO`, `Unix`, `RFC3339`
+  - **Example Values**: `"UTC"`
+
+- **fields**
+  - **Description**: Specifies the fields for the events.
+  - **Type**: Object
+  - **Example Values**:
+    ```json
+    {
+      "action": {
+        "type": "string",
+        "allowed_values": ["ALLOW", "DENY"],
+        "weights": [0.7, 0.3]
+      },
+      "response_time": {
+        "type": "int",
+        "constraints": {
+          "min": 1,
+          "max": 1000
+        },
+        "distribution": "normal",
+        "mean": 500,
+        "stddev": 100
+      }
+    }
+    ```
+
+#### Field Parameters
+
+- **type**
+  - **Description**: Specifies the type of the field.
+  - **Type**: String
+  - **Supported Values**: `string`, `int`, `datetime`
+  - **Example Values**: `"string"`
+
+- **allowed_values**
+  - **Description**: Specifies the allowed values for the field.
+  - **Type**: List of strings
+  - **Example Values**: `["ALLOW", "DENY"]`
+
+- **weights**
+  - **Description**: Specifies the relative frequency of values in the `allowed_values` list.
+  - **Type**: List of floats
+  - **Example Values**: `[0.7, 0.3]`
+
+- **constraints**
+  - **Description**: Specifies the constraints for the field.
+  - **Type**: Object
+  - **Example Values**:
+    ```json
+    {
+      "min": 1,
+      "max": 1000
+    }
+    ```
+
+- **distribution**
+  - **Description**: Specifies the distribution to use for generating integer values.
+  - **Type**: String
+  - **Supported Values**: `uniform`, `normal`, `exponential`, `zipfian`, `long_tail`, `random`
+  - **Example Values**: `"normal"`
+
+- **mean**
+  - **Description**: Specifies the mean value for the `normal` distribution.
+  - **Type**: Float
+  - **Example Values**: `500`
+
+- **stddev**
+  - **Description**: Specifies the standard deviation for the `normal` distribution.
+  - **Type**: Float
+  - **Example Values**: `100`
+
+- **lambda**
+  - **Description**: Specifies the rate parameter for the `exponential` distribution.
+  - **Type**: Float
+  - **Example Values**: `0.005`
+
+- **s**
+  - **Description**: Specifies the parameter for the `zipfian` distribution.
+  - **Type**: Float
+  - **Example Values**: `1.2`
+
+- **alpha**
+  - **Description**: Specifies the parameter for the `long_tail` distribution.
+  - **Type**: Float
+  - **Example Values**: `2.0`
+
+- **format**
+  - **Description**: Specifies the format for the `datetime` field.
+  - **Type**: String
+  - **Example Values**: `"%Y-%m-%dT%H:%M:%SZ"`
+
+- **formats**
+  - **Description**: Specifies the formats for the `message` field.
+  - **Type**: List of strings
+  - **Example Values**:
+    ```json
+    [
+      "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
+      "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
+      "{timestamp} - INFO - Application started successfully"
+    ]
+    ```
