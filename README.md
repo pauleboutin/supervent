@@ -17,13 +17,23 @@ boutin@gmail.com
 
 # Usage
 
-## Command-Line Parameters
+## Command-Line Arguments
+
+- **--config**: Specifies the path to the configuration file. If not provided, it defaults to config.json.
+- **--dataset**: Specifies the Axiom dataset name. This parameter is required.
+- **--api_key**: Specifies the Axiom API key. This parameter is required.
+- **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
+- **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
+- **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
+- **--postgres_db**: Specifies the PostgreSQL database name. This parameter is optional.
+- **--postgres_user**: Specifies the PostgreSQL user. This parameter is optional.
+- **--postgres_password**: Specifies the PostgreSQL password. This parameter is optional.
+
 
 - **--config**
   - **Description**: Path to the configuration file.
   - **Type**: String
   - **Default**: config.json
-  
   - **Example**: `--config /path/to/config.json`
 
 - **--dataset**
@@ -93,22 +103,8 @@ Python version
 ```sh
 python ./supervent.py --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres_user dbuser --postgres_password dbpassword
 ```
-### Command-line arguments
 
-- **--config**: Specifies the path to the configuration file. If not provided, it defaults to config.json
-
-.
-- **--dataset**: Specifies the Axiom dataset name. This parameter is required.
-- **--api_key**: Specifies the Axiom API key. This parameter is required.
-- **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
-- **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
-- **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
-- **--postgres_db**: Specifies the PostgreSQL database name. This parameter is optional.
-- **--postgres_user**: Specifies the PostgreSQL user. This parameter is optional.
-- **--postgres_password**: Specifies the PostgreSQL password. This parameter is optional.
-
-
-## Source configuration parameters 
+## Source Configuration Parameters 
 For config.json or other config file
 
 - **vendor**
