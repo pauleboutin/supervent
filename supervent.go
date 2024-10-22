@@ -197,7 +197,7 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 		case "datetime":
 			event[field] = generateDatetime(details, sourceConfig.TimestampFormat)
 		case "string":
-			event[field] = generateString(details)
+			event[field] = generateString(details, field)
 		case "int":
 			event[field] = generateInt(details)
 		}
@@ -221,7 +221,7 @@ func generateDatetime(details Field, timestampFormat string) string {
 	}
 }
 
-func generateString(details Field) string {
+func generateString(details Field, fieldName string) string {
 	if len(details.AllowedValues) > 0 {
 		if len(details.Weights) > 0 {
 			return weightedChoice(details.AllowedValues, details.Weights)
@@ -231,6 +231,9 @@ func generateString(details Field) string {
 	if len(details.Formats) > 0 {
 		selectedFormat := details.Formats[rand.Intn(len(details.Formats))]
 		return fmt.Sprintf(selectedFormat, time.Now().Format(details.Format))
+	}
+	if fieldName == "client_ip" || fieldName == "server_ip" || fieldName == "source_ip" || fieldName == "destination_ip" {
+		return generateRandomIPAddress()
 	}
 	return uuid.New().String()
 }
@@ -254,6 +257,10 @@ func generateInt(details Field) int {
 	default:
 		return rand.Intn(max-min+1) + min
 	}
+}
+
+func generateRandomIPAddress() string {
+	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
 }
 
 func weightedChoice(values []string, weights []float64) string {
