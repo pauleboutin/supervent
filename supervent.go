@@ -202,7 +202,7 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 			event[field] = generateInt(details)
 		}
 	}
-	fmt.Println(event) // Debug statement to print the complete event
+	printEvent(event) // Debug statement to print the complete event
 	return event
 }
 
@@ -286,10 +286,19 @@ func randPareto(alpha float64) float64 {
 	return rand.ExpFloat64() / alpha
 }
 
+func printEvent(event map[string]interface{}) {
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		log.Printf("Failed to marshal event for debugging: %v", err)
+		return
+	}
+	fmt.Printf("%s\n", eventJSON)
+}
+
 func main() {
 	configPath := flag.String("config", "config.json", "Path to the configuration file")
-	dataset := flag.String("dataset", "", "Axiom dataset name")
-	apiKey := flag.String("api_key", "", "Axiom API key")
+	axiomDataset := flag.String("axiom_dataset", "", "Axiom dataset name")
+	axiomAPIKey := flag.String("axiom_api_key", "", "Axiom API key")
 	batchSize := flag.Int("batch_size", DEFAULT_BATCH_SIZE, "Batch size for HTTP requests")
 	postgresHost := flag.String("postgres_host", "", "PostgreSQL host")
 	postgresPort := flag.Int("postgres_port", 5432, "PostgreSQL port")
@@ -298,8 +307,8 @@ func main() {
 	postgresPassword := flag.String("postgres_password", "", "PostgreSQL password")
 	flag.Parse()
 
-	if *dataset == "" || *apiKey == "" {
-		log.Fatal("dataset and api_key are required")
+	if *axiomDataset == "" || *axiomAPIKey == "" {
+		log.Fatal("axiom_dataset and axiom_api_key are required")
 	}
 
 	config, err := loadConfig(*configPath)
@@ -318,7 +327,7 @@ func main() {
 		}
 	}
 
-	eventGenerator := NewEventGenerator(*dataset, *apiKey, *batchSize, postgresConfig)
+	eventGenerator := NewEventGenerator(*axiomDataset, *axiomAPIKey, *batchSize, postgresConfig)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)

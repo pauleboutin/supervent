@@ -187,8 +187,8 @@ def signal_handler(signal, frame):
 async def main():
     parser = argparse.ArgumentParser(description='Generate and send events.')
     parser.add_argument('--config', type=str, default='config.json', help='Path to the configuration file')
-    parser.add_argument('--dataset', type=str, required=True, help='Axiom dataset name')
-    parser.add_argument('--api_key', type=str, required=True, help='Axiom API key')
+    parser.add_argument('--axiom_dataset', type=str, required=True, help='Axiom dataset name')
+    parser.add_argument('--axiom_api_key', type=str, required=True, help='Axiom API key')
     parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
     parser.add_argument('--postgres_host', type=str, help='PostgreSQL host')
     parser.add_argument('--postgres_port', type=int, help='PostgreSQL port')
@@ -198,8 +198,8 @@ async def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    dataset = args.dataset
-    api_key = args.api_key
+    dataset = args.axiom_dataset
+    api_key = args.axiom_api_key
     batch_size = args.batch_size
 
     postgres_config = None
