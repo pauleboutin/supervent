@@ -74,65 +74,44 @@ class EventGenerator:
 
 # Load configuration from config.json
 def load_config(file_path):
-    with open(file_path, 'r') as file:
-        config = json.load(file)
-    return config
+    try:
+        with open(file_path, 'r') as file:
+            config = json.load(file)
+        print("Configuration loaded successfully")
+        return config
+    except Exception as e:
+        print(f"Failed to load configuration: {e}")
+        sys.exit(1)
 
 # Generate a random event based on the source configuration
 def generate_event(source_config):
-    event = {"source": source_config["vendor"]}
+    event = {"Generated-by": source_config["vendor"]}
     for field, details in source_config['fields'].items():
         if details['type'] == 'datetime':
-            if source_config['timestamp_format'] == 'UTC':
-                event[field] = datetime.utcnow().strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ'))
-            elif source_config['timestamp_format'] == 'ISO':
-                event[field] = datetime.now().isoformat()
-            elif source_config['timestamp_format'] == 'Unix':
-                event[field] = int(time.time())
-            elif source_config['timestamp_format'] == 'RFC3339':
-                event[field] = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
-            else:
-                event[field] = datetime.now().strftime(source_config['timestamp_format'])
+            event[field] = datetime.now(timezone.utc).strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ'))
         elif details['type'] == 'string':
             if 'allowed_values' in details:
-                if 'weights' in details:
-                    event[field] = random.choices(details['allowed_values'], weights=details['weights'])[0]
-                else:
-                    event[field] = random.choice(details['allowed_values'])
+                event[field] = random.choices(details['allowed_values'], weights=details.get('weights', None))[0]
+            elif details.get('format') == 'ip':
+                event[field] = generate_random_ip_address()
+            elif details.get('format') == 'uuid':
+                event[field] = str(uuid.uuid4())
             else:
-                if details.get('format') == 'ip':
-                    event[field] = generate_random_ip_address()
-                else:
-                    event[field] = uuid.uuid4().hex
+                event[field] = uuid.uuid4().hex
         elif details['type'] == 'int':
             if 'allowed_values' in details:
-                if 'weights' in details:
-                    event[field] = random.choices(details['allowed_values'], weights=details['weights'])[0]
-                else:
-                    event[field] = random.choice(details['allowed_values'])
-            elif 'distribution' in details:
-                if details['distribution'] == 'uniform':
-                    event[field] = random.randint(details['constraints']['min'], details['constraints']['max'])
-                elif details['distribution'] == 'normal':
-                    mean = details.get('mean', 0)
-                    stddev = details.get('stddev', 1)
-                    event[field] = int(np.random.normal(mean, stddev))
-                elif details['distribution'] == 'exponential':
-                    lam = details.get('lambda', 1)
-                    event[field] = int(np.random.exponential(1/lam))
-                elif details['distribution'] == 'zipfian':
-                    s = details.get('s', 1.07)
-                    event[field] = int(np.random.zipf(s))
-                elif details['distribution'] == 'long_tail':
-                    alpha = details.get('alpha', 1.5)
-                    event[field] = int(np.random.pareto(alpha))
-                elif details['distribution'] == 'random':
-                    event[field] = random.randint(details['constraints']['min'], details['constraints']['max'])
+                event[field] = random.choices(details['allowed_values'], weights=details.get('weights', None))[0]
             else:
-                min_val = int(details.get('constraints', {}).get('min', 0))
-                max_val = int(details.get('constraints', {}).get('max', 100))
+                min_val = details['constraints']['min']
+                max_val = details['constraints']['max']
                 event[field] = random.randint(min_val, max_val)
         # Add more types and distributions as needed
+
+    # Handle message field with placeholders
+    if 'message' in source_config['fields']:
+        message_template = random.choices(source_config['fields']['message']['formats'], weights=source_config['fields']['message'].get('weights', None))[0]
+        event['message'] = message_template.format(**event)
+
     print(event)  # Debug statement to print the complete event
     return event
 
@@ -161,6 +140,8 @@ async def main():
     parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
     args = parser.parse_args()
 
+    print("Arguments parsed successfully")
+
     config = load_config(args.config)
     dataset = args.axiom_dataset
     api_key = args.axiom_api_key
@@ -183,11 +164,17 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    print("Starting event generation")
+
     # Generate events in a round-robin fashion indefinitely
     while True:
         for source in config['sources']:
             event = generate_event(source)
             await event_generator.emit(event)
+        await asyncio.sleep(1)  # Add a small delay to avoid tight loop
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Exception occurred: {e}")

@@ -103,67 +103,182 @@
       "vendor": "Apache HTTP Server",
       "timestamp_format": "Unix",
       "fields": {
-        "status_code": {
-          "type": "int",
-          "allowed_values": [200, 301, 400, 404, 500, 503],
-          "weights": [0.8, 0.05, 0.05, 0.05, 0.03, 0.02]
-        },
-        "response_time": {
-          "type": "int",
-          "constraints": {
-            "min": 1,
-            "max": 5000
-          },
-          "distribution": "zipfian",
-          "s": 1.2
-        }
-      }
-    },
-    {
-      "vendor": "Linux SSH Server",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "login_attempts": {
-          "type": "int",
-          "constraints": {
-            "min": 1,
-            "max": 10
-          },
-          "distribution": "long_tail",
-          "alpha": 2.0
-        },
-        "action": {
-          "type": "string",
-          "allowed_values": ["SUCCESS", "FAILURE"],
-          "weights": [0.8, 0.2]
-        }
-      }
-    },
-    {
-      "vendor": "Windows Server",
-      "timestamp_format": "UTC",
-      "fields": {
-        "event_id": {
-          "type": "int",
-          "constraints": {
-            "min": 1000,
-            "max": 5000
-          },
-          "distribution": "random"
-        },
-        "severity": {
-          "type": "string",
-          "allowed_values": ["INFO", "WARN", "ERROR", "CRITICAL"],
-          "weights": [0.5, 0.3, 0.15, 0.05]
-        },
-        "source_ip": {
+        "src_ip": {
           "type": "string",
           "format": "ip"
         },
+        "timestamp": {
+          "type": "datetime",
+          "format": "%d/%b/%Y:%H:%M:%S %z"
+        },
+        "method": {
+          "type": "string",
+          "allowed_values": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"],
+          "weights": [0.5, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1]
+        },
+        "url": {
+          "type": "string",
+          "allowed_values": [
+            "/index.html", "/login", "/nonexistent.html", "/dashboard", "/admin",
+            "/api/v1/resource", "/api/v1/resource/123", "/contact", "/", "/home",
+            "/submit-form", "/user/profile", "/search?q=test", "/logout", "/blog",
+            "/api/v1/resource/456", "/about", "/register", "/privacy", "/sitemap.xml",
+            "/robots.txt", "/comments"
+          ],
+          "weights": [0.3, 0.05, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.3, 0.02, 0.01, 0.01, 0.01, 0.01, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+        },
+        "protocol": {
+          "type": "string",
+          "allowed_values": ["HTTP/1.0", "HTTP/1.1", "HTTP/2.0"],
+          "weights": [0.1, 0.8, 0.1]
+        },
+        "status_code": {
+          "type": "int",
+          "allowed_values": [200, 201, 204, 302, 304, 401, 403, 404, 500],
+          "weights": [0.7, 0.05, 0.05, 0.05, 0.05, 0.02, 0.02, 0.05, 0.01]
+        },
+        "response_size": {
+          "type": "int",
+          "constraints": {
+            "min": 0,
+            "max": 5000
+          }
+        },
+        "referrer": {
+          "type": "string",
+          "allowed_values": ["-", "http://example.com", "http://example.com/form", "http://example.com/profile", "http://example.com/blog"],
+          "weights": [0.7, 0.1, 0.05, 0.05, 0.1]
+        },
+        "user_agent": {
+          "type": "string",
+          "allowed_values": [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+            "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36",
+            "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
+            "curl/7.68.0",
+            "PostmanRuntime/7.26.8"
+          ],
+          "weights": [0.4, 0.2, 0.1, 0.1, 0.1, 0.1]
+        },
+        "message": {
+          "type": "string",
+          "formats": [
+            "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
+          ]
+        }
+      }
+    },
+    {
+          "vendor": "Linux SSH Server",
+          "timestamp_format": "RFC3339",
+          "fields": {
+            "login_attempts": {
+              "type": "int",
+              "constraints": {
+                "min": 1,
+                "max": 10
+              },
+              "distribution": "long_tail",
+              "alpha": 2.0
+            },
+            "action": {
+              "type": "string",
+              "allowed_values": ["SUCCESS", "FAILURE"],
+              "weights": [0.8, 0.2]
+            },
+            "timestamp": {
+              "type": "datetime",
+              "format": "%b %d %H:%M:%S"
+            },
+            "pid": {
+              "type": "int",
+              "constraints": {
+                "min": 10000,
+                "max": 99999
+              }
+            },
+            "user": {
+              "type": "string",
+              "allowed_values": ["cfrln", "jedwards", "amrit", "wei_li", "ivanov", "arjun", "root"],
+              "weights": [0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.2]
+            },
+            "src_ip": {
+              "type": "string",
+              "format": "ip"
+            },
+            "message": {
+              "type": "string",
+              "formats": [
+                "{timestamp} auth-server1 sshd[{pid}]: Accepted password for {user} from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Failed password for invalid user from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Accepted publickey for {user} from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Received disconnect from {src_ip} port 22:11: disconnected by user",
+                "{timestamp} auth-server1 sshd[{pid}]: Connection closed by {src_ip} port 22 [preauth]",
+                "{timestamp} auth-server1 sshd[{pid}]: Accepted password for {user} from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Failed publickey for {user} from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Accepted publickey for {user} from {src_ip} port 22 ssh2",
+                "{timestamp} auth-server1 sshd[{pid}]: Disconnected from {src_ip} port 22 [preauth]",
+                "{timestamp} auth-server1 sshd[{pid}]: Failed password for root from {src_ip} port 22 ssh2"
+              ],
+              "weights": [0.15, 0.1, 0.15, 0.1, 0.1, 0.15, 0.1, 0.1, 0.05, 0.1]
+            }
+          }
+        },
+      {
+      "vendor": "Windows Server",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%b %d %H:%M:%S"
+        },
+        "hostname": {
+          "type": "string",
+          "allowed_values": ["WIN-SERVER1"]
+        },
+        "source": {
+          "type": "string",
+          "allowed_values": [
+            "Microsoft-Windows-Security-Auditing",
+            "Service Control Manager",
+            "Disk",
+            "Application Error",
+            "Microsoft-Windows-WindowsUpdateClient",
+            "EventLog",
+            "Tcpip"
+          ],
+          "weights": [0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1]
+        },
+        "event_id": {
+          "type": "int",
+          "allowed_values": [4624, 4740, 7036, 7, 1000, 20, 6006, 5136, 4201],
+          "weights": [0.2, 0.1, 0.2, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
+        },
+        "message": {
+          "type": "string",
+          "formats": [
+            "{timestamp} {hostname} {source}[{event_id}]: An account was successfully logged on. Logon Type: 2, User: {user}",
+            "{timestamp} {hostname} {source}[{event_id}]: A user account was locked out. Account Name: {user}",
+            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the running state.",
+            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the stopped state.",
+            "{timestamp} {hostname} {source}[{event_id}]: The device, \\Device\\Harddisk0\\DR0, has a bad block.",
+            "{timestamp} {hostname} {source}[{event_id}]: Faulting application name: example.exe, version: 1.0.0.0, time stamp: 0x5dce03d5; Faulting module name: kernel32.dll, version: 10.0.19041.1, time stamp: 0x7f62e7e4",
+            "{timestamp} {hostname} {source}[{event_id}]: Installation Successful: Windows successfully installed the following update: Security Update for Windows (KB123456)",
+            "{timestamp} {hostname} {source}[{event_id}]: The Event log service was stopped.",
+            "{timestamp} {hostname} {source}[{event_id}]: A directory service object was modified.",
+            "{timestamp} {hostname} {source}[{event_id}]: The system detected that network adapter \\DEVICE\\{GUID} was connected to the network."
+          ],
+          "weights": [0.2, 0.1, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
+        },
         "user": {
           "type": "string",
-          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
+          "allowed_values": ["JohnDoe", "JaneSmith", "AdminUser", "GuestUser"],
           "weights": [0.4, 0.3, 0.2, 0.1]
+        },
+        "GUID": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -474,6 +589,7 @@
           ],
           "weights": [0.1, 0.1, 0.2, 0.1, 0.1, 0.05, 0.1, 0.1, 0.1, 0.05]
         }
+
       }
     }
   ]

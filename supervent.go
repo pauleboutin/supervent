@@ -62,7 +62,7 @@ func NewEventGenerator(dataset, apiKey string, batchSize int, postgresConfig *Po
 	}
 
 	if postgresConfig != nil {
-		connStr := fmt.Sprintf("host=%s port=% dbname=%s user=%s password=%s sslmode=disable",
+		connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 			postgresConfig.Host, postgresConfig.Port, postgresConfig.DBName, postgresConfig.User, postgresConfig.Password)
 		db, err := sql.Open("postgres", connStr)
 		if err != nil {
@@ -190,7 +190,7 @@ func loadConfig(filePath string) (*Config, error) {
 
 func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 	event := map[string]interface{}{
-		"source": sourceConfig.Vendor,
+		"Generated-by": sourceConfig.Vendor,
 	}
 	for field, details := range sourceConfig.Fields {
 		switch details.Type {
@@ -200,6 +200,13 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 			event[field] = generateString(details)
 		case "int":
 			event[field] = generateInt(details)
+		}
+	}
+	// Handle message field with placeholders
+	if messageTemplate, ok := sourceConfig.Fields["message"]; ok {
+		if len(messageTemplate.Formats) > 0 {
+			selectedFormat := messageTemplate.Formats[rand.Intn(len(messageTemplate.Formats))]
+			event["message"] = fmt.Sprintf(selectedFormat, event)
 		}
 	}
 	printEvent(event) // Debug statement to print the complete event
