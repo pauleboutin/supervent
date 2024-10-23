@@ -12,15 +12,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+
+	"github.com/google/uuid"
+	"github.com/jaswdr/faker"
 	"github.com/valyala/fasthttp"
 )
 
 const DEFAULT_BATCH_SIZE = 100
 
 type Config struct {
-	Sources []SourceConfig `json:"sources"`
+	UsernameGroups map[string]UsernameGroup `json:"username_groups"`
+	Sources        []SourceConfig           `json:"sources"`
+}
+
+type UsernameGroup struct {
+	Regions []string `json:"regions"`
+	Count   int      `json:"count"`
 }
 
 type SourceConfig struct {
@@ -42,8 +50,9 @@ type Field struct {
 	Alpha         float64                `json:"alpha,omitempty"`
 	Format        string                 `json:"format,omitempty"`
 	Messages      []string               `json:"messages,omitempty"`
+	Group         string                 `json:"group,omitempty"`
+	Count         int                    `json:"count,omitempty"`
 }
-
 type EventGenerator struct {
 	Dataset      string
 	APIKey       string
@@ -189,7 +198,7 @@ func loadConfig(filePath string) (*Config, error) {
 	return &config, nil
 }
 
-func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
+func generateEvent(sourceConfig SourceConfig, usernames map[string][]string) map[string]interface{} {
 	event := map[string]interface{}{
 		"Generated-by": sourceConfig.Vendor,
 	}
@@ -198,9 +207,25 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 		case "datetime":
 			event[field] = generateDatetime(details, sourceConfig.TimestampFormat)
 		case "string":
-			event[field] = generateString(details)
+			if details.Group != "" {
+				groupName := details.Group
+				count := details.Count
+				event[field] = usernames[groupName][rand.Intn(count)]
+			} else if len(details.AllowedValues) > 0 {
+				event[field] = weightedChoice(details.AllowedValues, details.Weights)
+			} else if details.Format == "ip" {
+				event[field] = generateRandomIPAddress()
+			} else {
+				event[field] = uuid.New().String()
+			}
 		case "int":
-			event[field] = generateInt(details)
+			if len(details.AllowedValues) > 0 {
+				event[field] = weightedChoiceInt(details.AllowedValues, details.Weights)
+			} else {
+				min := int(details.Constraints["min"].(float64))
+				max := int(details.Constraints["max"].(float64))
+				event[field] = rand.Intn(max-min+1) + min
+			}
 		}
 	}
 	// Handle message field with placeholders
@@ -232,7 +257,7 @@ func generateDatetime(details Field, timestampFormat string) string {
 func generateString(details Field) string {
 	if len(details.AllowedValues) > 0 {
 		if len(details.Weights) > 0 {
-			return weightedChoice(details.AllowedValues, details.Weights)
+			return weightedChoice(details.AllowedValues, details.Weights).(string)
 		}
 		return details.AllowedValues[rand.Intn(len(details.AllowedValues))].(string)
 	}
@@ -273,8 +298,42 @@ func generateInt(details Field) int {
 		return rand.Intn(max-min+1) + min
 	}
 }
+func generateRandomIPAddress() string {
+	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
+}
+
+func weightedChoice(values []interface{}, weights []float64) interface{} {
+	if len(weights) == 0 || len(values) != len(weights) {
+		// Generate equal weights if weights are missing or invalid
+		weights = make([]float64, len(values))
+		for i := range weights {
+			weights[i] = 1.0 / float64(len(values))
+		}
+	}
+
+	totalWeight := 0.0
+	for _, weight := range weights {
+		totalWeight += weight
+	}
+	r := rand.Float64() * totalWeight
+	for i, weight := range weights {
+		if r < weight {
+			return values[i]
+		}
+		r -= weight
+	}
+	return values[len(values)-1]
+}
 
 func weightedChoiceInt(values []interface{}, weights []float64) int {
+	if len(weights) == 0 || len(values) != len(weights) {
+		// Generate equal weights if weights are missing or invalid
+		weights = make([]float64, len(values))
+		for i := range weights {
+			weights[i] = 1.0 / float64(len(values))
+		}
+	}
+
 	totalWeight := 0.0
 	for _, weight := range weights {
 		totalWeight += weight
@@ -287,25 +346,6 @@ func weightedChoiceInt(values []interface{}, weights []float64) int {
 		r -= weight
 	}
 	return int(values[len(values)-1].(float64))
-}
-
-func generateRandomIPAddress() string {
-	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
-}
-
-func weightedChoice(values []interface{}, weights []float64) string {
-	totalWeight := 0.0
-	for _, weight := range weights {
-		totalWeight += weight
-	}
-	r := rand.Float64() * totalWeight
-	for i, weight := range weights {
-		if r < weight {
-			return values[i].(string)
-		}
-		r -= weight
-	}
-	return values[len(values)-1].(string)
 }
 
 func randZipf(s float64) float64 {
@@ -331,6 +371,21 @@ func printEvent(event map[string]interface{}) {
 		return
 	}
 	fmt.Printf("%s\n", eventJSON)
+}
+func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]string {
+	usernames := make(map[string][]string)
+	for groupName, groupDetails := range groupsConfig {
+		count := groupDetails.Count
+		usernames[groupName] = []string{}
+
+		fake := faker.NewWithSeed(rand.NewSource(0)) // Ensure reproducibility
+
+		for i := 0; i < count; i++ {
+			usernames[groupName] = append(usernames[groupName], fake.Person().Name())
+		}
+	}
+	fmt.Println("Generated Usernames:", usernames) // Debug print
+	return usernames
 }
 
 func main() {
@@ -367,6 +422,9 @@ func main() {
 
 	eventGenerator := NewEventGenerator(*axiomDataset, *axiomAPIKey, *batchSize, postgresConfig)
 
+	// Generate usernames based on the specified groups
+	usernames := generateUsernames(config.UsernameGroups)
+
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, os.Kill)
 	go func() {
@@ -376,12 +434,15 @@ func main() {
 		if eventGenerator.PostgresConn != nil {
 			eventGenerator.PostgresConn.Close()
 		}
+		if eventGenerator.PostgresConn != nil {
+			eventGenerator.PostgresConn.Close()
+		}
 		os.Exit(0)
 	}()
 
 	for {
 		for _, source := range config.Sources {
-			event := generateEvent(source)
+			event := generateEvent(source, usernames)
 			eventGenerator.Emit(event)
 		}
 		time.Sleep(1 * time.Second) // Adjust the sleep duration as needed

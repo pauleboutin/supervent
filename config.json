@@ -1,4 +1,16 @@
-{
+
+  {
+    "username_groups": {
+      "global_users": {
+        "regions": ["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"],
+        "count": 1000
+      },
+      "outsourced_partner": {
+        "regions": ["en_IN"],
+        "city": "Bengaluru",
+        "count": 500
+      }
+    },
   "sources": [
     {
       "vendor": "F5 Networks BIG-IP",
@@ -28,8 +40,8 @@
         },
         "user": {
           "type": "string",
-          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
-          "weights": [0.4, 0.3, 0.2, 0.1]
+          "group": "global_users",
+          "count": 50
         }
       }
     },
@@ -61,8 +73,8 @@
         },
         "user": {
           "type": "string",
-          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
-          "weights": [0.4, 0.3, 0.2, 0.1]
+          "group": "global_users",
+          "count": 50
         }
       }
     },
@@ -94,8 +106,8 @@
         },
         "user": {
           "type": "string",
-          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
-          "weights": [0.3, 0.4, 0.2, 0.1]
+          "group": "global_users",
+          "count": 50
         }
       }
     },
@@ -170,6 +182,39 @@
       }
     },
     {
+      "vendor": "Outsourced Partner Business",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%b %d %H:%M:%S"
+        },
+        "user": {
+          "type": "string",
+          "group": "outsourced_partner",
+          "count": 500
+        },
+        "pid": {
+          "type": "int",
+          "constraints": {
+            "min": 1000,
+            "max": 9999
+          }
+        },
+        "src_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "message": {
+          "type": "string",
+          "messages": [
+            "{timestamp} PARTNER-SERVER1 app[{pid}]: User {user} logged in from {src_ip}"
+          ]
+        }
+      }
+    },
+  
+    {
           "vendor": "Linux SSH Server",
           "timestamp_format": "RFC3339",
           "fields": {
@@ -200,8 +245,8 @@
             },
             "user": {
               "type": "string",
-              "allowed_values": ["cfrln", "jedwards", "amrit", "wei_li", "ivanov", "arjun", "root"],
-              "weights": [0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.2]
+              "allowed_values": ["cfrln", "amrit", "wei_li", "ivanov", "root"],
+              "weights": [0.2, 0.1, 0.1, 0.1, 0.2]
             },
             "src_ip": {
               "type": "string",
@@ -225,63 +270,7 @@
             }
           }
         },
-      {
-      "vendor": "Windows Server",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "%b %d %H:%M:%S"
-        },
-        "hostname": {
-          "type": "string",
-          "allowed_values": ["WIN-SERVER1"]
-        },
-        "source": {
-          "type": "string",
-          "allowed_values": [
-            "Microsoft-Windows-Security-Auditing",
-            "Service Control Manager",
-            "Disk",
-            "Application Error",
-            "Microsoft-Windows-WindowsUpdateClient",
-            "EventLog",
-            "Tcpip"
-          ],
-          "weights": [0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1]
-        },
-        "event_id": {
-          "type": "int",
-          "allowed_values": [4624, 4740, 7036, 7, 1000, 20, 6006, 5136, 4201],
-          "weights": [0.2, 0.1, 0.2, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
-        },
-        "message": {
-          "type": "string",
-          "messages": [
-            "{timestamp} {hostname} {source}[{event_id}]: An account was successfully logged on. Logon Type: 2, User: {user}",
-            "{timestamp} {hostname} {source}[{event_id}]: A user account was locked out. Account Name: {user}",
-            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the running state.",
-            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the stopped state.",
-            "{timestamp} {hostname} {source}[{event_id}]: The device, \\Device\\Harddisk0\\DR0, has a bad block.",
-            "{timestamp} {hostname} {source}[{event_id}]: Faulting application name: example.exe, version: 1.0.0.0, time stamp: 0x5dce03d5; Faulting module name: kernel32.dll, version: 10.0.19041.1, time stamp: 0x7f62e7e4",
-            "{timestamp} {hostname} {source}[{event_id}]: Installation Successful: Windows successfully installed the following update: Security Update for Windows (KB123456)",
-            "{timestamp} {hostname} {source}[{event_id}]: The Event log service was stopped.",
-            "{timestamp} {hostname} {source}[{event_id}]: A directory service object was modified.",
-            "{timestamp} {hostname} {source}[{event_id}]: The system detected that network adapter \\DEVICE\\{GUID} was connected to the network."
-          ],
-          "weights": [0.2, 0.1, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
-        },
-        "user": {
-          "type": "string",
-          "allowed_values": ["JohnDoe", "JaneSmith", "AdminUser", "GuestUser"],
-          "weights": [0.4, 0.3, 0.2, 0.1]
-        },
-        "GUID": {
-          "type": "string",
-          "format": "uuid"
-        }
-      }
-    },
+     
     {
       "vendor": "MySQL Database",
       "timestamp_format": "ISO",
@@ -590,6 +579,63 @@
           "weights": [0.1, 0.1, 0.2, 0.1, 0.1, 0.05, 0.1, 0.1, 0.1, 0.05]
         }
 
+      }
+    },
+    {
+      "vendor": "Windows Server",
+      "timestamp_format": "RFC3339",
+      "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%b %d %H:%M:%S"
+        },
+        "hostname": {
+          "type": "string",
+          "allowed_values": ["WIN-SERVER1"]
+        },
+        "source": {
+          "type": "string",
+          "allowed_values": [
+            "Microsoft-Windows-Security-Auditing",
+            "Service Control Manager",
+            "Disk",
+            "Application Error",
+            "Microsoft-Windows-WindowsUpdateClient",
+            "EventLog",
+            "Tcpip"
+          ],
+          "weights": [0.3, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1]
+        },
+        "event_id": {
+          "type": "int",
+          "allowed_values": [4624, 4740, 7036, 7, 1000, 20, 6006, 5136, 4201],
+          "weights": [0.2, 0.1, 0.2, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
+        },
+        "message": {
+          "type": "string",
+          "messages": [
+            "{timestamp} {hostname} {source}[{event_id}]: An account was successfully logged on. Logon Type: 2, User: {user}",
+            "{timestamp} {hostname} {source}[{event_id}]: A user account was locked out. Account Name: {user}",
+            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the running state.",
+            "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the stopped state.",
+            "{timestamp} {hostname} {source}[{event_id}]: The device, \\Device\\Harddisk0\\DR0, has a bad block.",
+            "{timestamp} {hostname} {source}[{event_id}]: Faulting application name: example.exe, version: 1.0.0.0, time stamp: 0x5dce03d5; Faulting module name: kernel32.dll, version: 10.0.19041.1, time stamp: 0x7f62e7e4",
+            "{timestamp} {hostname} {source}[{event_id}]: Installation Successful: Windows successfully installed the following update: Security Update for Windows (KB123456)",
+            "{timestamp} {hostname} {source}[{event_id}]: The Event log service was stopped.",
+            "{timestamp} {hostname} {source}[{event_id}]: A directory service object was modified.",
+            "{timestamp} {hostname} {source}[{event_id}]: The system detected that network adapter \\DEVICE\\{GUID} was connected to the network."
+          ],
+          "weights": [0.2, 0.1, 0.1, 0.1, 0.05, 0.1, 0.1, 0.05, 0.1, 0.1]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["JohnDoe", "JaneSmith", "AdminUser", "GuestUser"],
+          "weights": [0.4, 0.3, 0.2, 0.1]
+        },
+        "GUID": {
+          "type": "string",
+          "format": "uuid"
+        }
       }
     }
   ]

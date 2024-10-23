@@ -11,6 +11,7 @@ import signal
 import sys
 import numpy as np
 import psycopg2
+from faker import Faker
 
 DEFAULT_BATCH_SIZE = 100
 
@@ -83,14 +84,45 @@ def load_config(file_path):
         print(f"Failed to load configuration: {e}")
         sys.exit(1)
 
+# Generate usernames based on the specified groups
+def generate_usernames(groups_config):
+    usernames = {}
+    for group_name, group_details in groups_config.items():
+        regions = group_details.get('regions', ['en_US'])  # Default to 'en_US' if no region is specified
+        count = group_details['count']
+        usernames[group_name] = []
+
+        # Distribute the count evenly across the regions
+        names_per_region = count // len(regions)
+        extra_names = count % len(regions)
+
+        for region in regions:
+            Faker.seed(0)  # Ensure reproducibility
+            fake = Faker(region)
+            for _ in range(names_per_region):
+                usernames[group_name].append(fake.name())
+
+        # Add extra names to make up the total count
+        for _ in range(extra_names):
+            Faker.seed(0)  # Ensure reproducibility
+            fake = Faker(random.choice(regions))
+            usernames[group_name].append(fake.name())
+
+    print("Generated Usernames:", usernames)  # Debug print
+    return usernames
+
 # Generate a random event based on the source configuration
-def generate_event(source_config):
+def generate_event(source_config, usernames):
     event = {"Generated-by": source_config["vendor"]}
     for field, details in source_config['fields'].items():
         if details['type'] == 'datetime':
             event[field] = datetime.now(timezone.utc).strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ'))
         elif details['type'] == 'string':
-            if 'allowed_values' in details:
+            if 'group' in details:
+                group_name = details['group']
+                count = details['count']
+                event[field] = random.choice(usernames[group_name][:count])
+            elif 'allowed_values' in details:
                 event[field] = random.choices(details['allowed_values'], weights=details.get('weights', None))[0]
             elif details.get('format') == 'ip':
                 event[field] = generate_random_ip_address()
@@ -110,7 +142,7 @@ def generate_event(source_config):
     # Handle message field with placeholders
     if 'message' in source_config['fields']:
         message_template = random.choices(source_config['fields']['message']['messages'], weights=source_config['fields']['message'].get('weights', None))[0]
-        event['message'] = message_template.format(**event)
+        event['message'] = replace_placeholders(message_template, event)
 
     print(event)  # Debug statement to print the complete event
     return event
@@ -118,6 +150,13 @@ def generate_event(source_config):
 # Generate a random IP address
 def generate_random_ip_address():
     return f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 255)}"
+
+# Replace placeholders in the message template with actual values
+def replace_placeholders(format, values):
+    for key, value in values.items():
+        placeholder = f"{{{key}}}"
+        format = format.replace(placeholder, str(value))
+    return format
 
 # Signal handler to gracefully exit on ^C or kill signal
 def signal_handler(signal, frame):
@@ -160,6 +199,9 @@ async def main():
     global event_generator
     event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size, postgres_config=postgres_config)
 
+    # Generate usernames based on the specified groups
+    usernames = generate_usernames(config.get('username_groups', {}))
+
     # Set up signal handling to gracefully exit on ^C or kill signal
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -169,9 +211,9 @@ async def main():
     # Generate events in a round-robin fashion indefinitely
     while True:
         for source in config['sources']:
-            event = generate_event(source)
+            event = generate_event(source, usernames)
             await event_generator.emit(event)
-        await asyncio.sleep(1)  # Add a small delay to avoid tight loop
+        # await asyncio.sleep(1)  # Add a small delay to avoid tight loop
 
 if __name__ == "__main__":
     try:
