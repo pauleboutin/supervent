@@ -20,8 +20,8 @@ boutin@gmail.com
 ## Command-Line Arguments
 
 - **--config**: Specifies the path to the configuration file. If not provided, it defaults to config.json.
-- **--dataset**: Specifies the Axiom dataset name. This parameter is required.
-- **--api_key**: Specifies the Axiom API key. This parameter is required.
+- **--axiom_dataset**: Specifies the Axiom dataset name. This parameter is required.
+- **--axiom_api_key**: Specifies the Axiom API key. This parameter is required.
 - **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
 - **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
 - **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
@@ -36,13 +36,13 @@ boutin@gmail.com
   - **Default**: config.json
   - **Example**: `--config /path/to/config.json`
 
-- **--dataset**
+- **--axiom_dataset**
   - **Description**: Axiom dataset name.
   - **Type**: String
   - **Required**: Yes
   - **Example**: `--dataset supervent`
 
-- **--api_key**
+- **--axiom_api_key**
   - **Description**: Axiom API key.
   - **Type**: String
   - **Required**: Yes
@@ -86,11 +86,11 @@ boutin@gmail.com
 
 Go version
 ```sh
-./supervent --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+./supervent --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 Python version
 ```sh
-python ./supervent.py --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+python ./supervent.py --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 
 **To send to a PostgreSQL database**
