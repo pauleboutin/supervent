@@ -30,7 +30,7 @@ type SourceConfig struct {
 
 type Field struct {
 	Type          string                 `json:"type"`
-	AllowedValues []string               `json:"allowed_values,omitempty"`
+	AllowedValues []interface{}          `json:"allowed_values,omitempty"`
 	Weights       []float64              `json:"weights,omitempty"`
 	Constraints   map[string]interface{} `json:"constraints,omitempty"`
 	Distribution  string                 `json:"distribution,omitempty"`
@@ -226,7 +226,7 @@ func generateString(details Field, fieldName string) string {
 		if len(details.Weights) > 0 {
 			return weightedChoice(details.AllowedValues, details.Weights)
 		}
-		return details.AllowedValues[rand.Intn(len(details.AllowedValues))]
+		return details.AllowedValues[rand.Intn(len(details.AllowedValues))].(string)
 	}
 	if len(details.Formats) > 0 {
 		selectedFormat := details.Formats[rand.Intn(len(details.Formats))]
@@ -239,6 +239,13 @@ func generateString(details Field, fieldName string) string {
 }
 
 func generateInt(details Field) int {
+	if len(details.AllowedValues) > 0 {
+		if len(details.Weights) > 0 {
+			return weightedChoiceInt(details.AllowedValues, details.Weights)
+		}
+		return int(details.AllowedValues[rand.Intn(len(details.AllowedValues))].(float64))
+	}
+
 	min := int(details.Constraints["min"].(float64))
 	max := int(details.Constraints["max"].(float64))
 	switch details.Distribution {
@@ -259,11 +266,7 @@ func generateInt(details Field) int {
 	}
 }
 
-func generateRandomIPAddress() string {
-	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
-}
-
-func weightedChoice(values []string, weights []float64) string {
+func weightedChoiceInt(values []interface{}, weights []float64) int {
 	totalWeight := 0.0
 	for _, weight := range weights {
 		totalWeight += weight
@@ -271,11 +274,30 @@ func weightedChoice(values []string, weights []float64) string {
 	r := rand.Float64() * totalWeight
 	for i, weight := range weights {
 		if r < weight {
-			return values[i]
+			return int(values[i].(float64))
 		}
 		r -= weight
 	}
-	return values[len(values)-1]
+	return int(values[len(values)-1].(float64))
+}
+
+func generateRandomIPAddress() string {
+	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
+}
+
+func weightedChoice(values []interface{}, weights []float64) string {
+	totalWeight := 0.0
+	for _, weight := range weights {
+		totalWeight += weight
+	}
+	r := rand.Float64() * totalWeight
+	for i, weight := range weights {
+		if r < weight {
+			return values[i].(string)
+		}
+		r -= weight
+	}
+	return values[len(values)-1].(string)
 }
 
 func randZipf(s float64) float64 {

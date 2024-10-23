@@ -6,26 +6,20 @@ import uuid
 import asyncio
 import aiohttp
 import math
-import yaml
 import argparse
 import signal
 import sys
 import numpy as np
-import psycopg2
 
 DEFAULT_BATCH_SIZE = 100
 
 class EventGenerator:
-    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE, postgres_config=None):
+    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE):
         self.dataset = dataset
         self.api_key = api_key
         self.url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
         self.batch_size = batch_size
         self.batch = []
-        self.postgres_config = postgres_config
-        if postgres_config:
-            self.conn = psycopg2.connect(**postgres_config)
-            self.cursor = self.conn.cursor()
 
     async def emit(self, record):
         # Strip "custom." prefix from keys
@@ -51,17 +45,7 @@ class EventGenerator:
                     print(f"Failed to send batch: {response.status}")
                 else:
                     print("Batch sent successfully")
-        if self.postgres_config:
-            self.send_to_postgres(self.batch)
         self.batch = []
-
-    def send_to_postgres(self, batch):
-        for record in batch:
-            columns = record.keys()
-            values = [record[column] for column in columns]
-            insert_statement = f"INSERT INTO {self.dataset} ({', '.join(columns)}) VALUES %s"
-            self.cursor.execute(insert_statement, (tuple(values),))
-        self.conn.commit()
 
 # Load configuration from config.json
 def load_config(file_path):
@@ -110,7 +94,12 @@ def generate_event(source_config):
                 else:
                     event[field] = generate_random_username() if field == "user" else generate_random_ip_address()
         elif details['type'] == 'int':
-            if 'distribution' in details:
+            if 'allowed_values' in details:
+                if 'weights' in details:
+                    event[field] = random.choices(details['allowed_values'], weights=details['weights'])[0]
+                else:
+                    event[field] = random.choice(details['allowed_values'])
+            elif 'distribution' in details:
                 if details['distribution'] == 'uniform':
                     event[field] = random.randint(details['constraints']['min'], details['constraints']['max'])
                 elif details['distribution'] == 'normal':
@@ -190,30 +179,14 @@ async def main():
     parser.add_argument('--axiom_dataset', type=str, required=True, help='Axiom dataset name')
     parser.add_argument('--axiom_api_key', type=str, required=True, help='Axiom API key')
     parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
-    parser.add_argument('--postgres_host', type=str, help='PostgreSQL host')
-    parser.add_argument('--postgres_port', type=int, help='PostgreSQL port')
-    parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
-    parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
-    parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
     args = parser.parse_args()
 
     config = load_config(args.config)
     dataset = args.axiom_dataset
     api_key = args.axiom_api_key
     batch_size = args.batch_size
-
-    postgres_config = None
-    if args.postgres_host and args.postgres_port and args.postgres_db and args.postgres_user and args.postgres_password:
-        postgres_config = {
-            'host': args.postgres_host,
-            'port': args.postgres_port,
-            'dbname': args.postgres_db,
-            'user': args.postgres_user,
-            'password': args.postgres_password
-        }
-
     global event_generator
-    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size, postgres_config=postgres_config)
+    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size)
 
     # Set up signal handling to gracefully exit on ^C or kill signal
     signal.signal(signal.SIGINT, signal_handler)
