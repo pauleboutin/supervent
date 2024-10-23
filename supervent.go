@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ type Field struct {
 	S             float64                `json:"s,omitempty"`
 	Alpha         float64                `json:"alpha,omitempty"`
 	Format        string                 `json:"format,omitempty"`
-	Formats       []string               `json:"formats,omitempty"`
+	Messages      []string               `json:"messages,omitempty"`
 }
 
 type EventGenerator struct {
@@ -204,9 +205,9 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 	}
 	// Handle message field with placeholders
 	if messageTemplate, ok := sourceConfig.Fields["message"]; ok {
-		if len(messageTemplate.Formats) > 0 {
-			selectedFormat := messageTemplate.Formats[rand.Intn(len(messageTemplate.Formats))]
-			event["message"] = fmt.Sprintf(selectedFormat, event)
+		if len(messageTemplate.Messages) > 0 {
+			selectedFormat := messageTemplate.Messages[rand.Intn(len(messageTemplate.Messages))]
+			event["message"] = replacePlaceholders(selectedFormat, event)
 		}
 	}
 	printEvent(event) // Debug statement to print the complete event
@@ -235,8 +236,8 @@ func generateString(details Field) string {
 		}
 		return details.AllowedValues[rand.Intn(len(details.AllowedValues))].(string)
 	}
-	if len(details.Formats) > 0 {
-		selectedFormat := details.Formats[rand.Intn(len(details.Formats))]
+	if len(details.Messages) > 0 {
+		selectedFormat := details.Messages[rand.Intn(len(details.Messages))]
 		return fmt.Sprintf(selectedFormat, time.Now().Format(details.Format))
 	}
 	if details.Format == "ip" {
@@ -313,6 +314,14 @@ func randZipf(s float64) float64 {
 
 func randPareto(alpha float64) float64 {
 	return rand.ExpFloat64() / alpha
+}
+
+func replacePlaceholders(format string, values map[string]interface{}) string {
+	for key, value := range values {
+		placeholder := fmt.Sprintf("{%s}", key)
+		format = strings.ReplaceAll(format, placeholder, fmt.Sprintf("%v", value))
+	}
+	return format
 }
 
 func printEvent(event map[string]interface{}) {

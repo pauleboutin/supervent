@@ -163,7 +163,7 @@
         },
         "message": {
           "type": "string",
-          "formats": [
+          "messages": [
             "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
           ]
         }
@@ -209,7 +209,7 @@
             },
             "message": {
               "type": "string",
-              "formats": [
+              "messages": [
                 "{timestamp} auth-server1 sshd[{pid}]: Accepted password for {user} from {src_ip} port 22 ssh2",
                 "{timestamp} auth-server1 sshd[{pid}]: Failed password for invalid user from {src_ip} port 22 ssh2",
                 "{timestamp} auth-server1 sshd[{pid}]: Accepted publickey for {user} from {src_ip} port 22 ssh2",
@@ -257,7 +257,7 @@
         },
         "message": {
           "type": "string",
-          "formats": [
+          "messages": [
             "{timestamp} {hostname} {source}[{event_id}]: An account was successfully logged on. Logon Type: 2, User: {user}",
             "{timestamp} {hostname} {source}[{event_id}]: A user account was locked out. Account Name: {user}",
             "{timestamp} {hostname} {source}[{event_id}]: The Windows Update service entered the running state.",
@@ -575,7 +575,7 @@
         },
         "message": {
           "type": "string",
-          "formats": [
+          "messages": [
             "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
             "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
             "{timestamp} - INFO - Application started successfully",

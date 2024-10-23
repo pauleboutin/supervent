@@ -109,7 +109,7 @@ def generate_event(source_config):
 
     # Handle message field with placeholders
     if 'message' in source_config['fields']:
-        message_template = random.choices(source_config['fields']['message']['formats'], weights=source_config['fields']['message'].get('weights', None))[0]
+        message_template = random.choices(source_config['fields']['message']['messages'], weights=source_config['fields']['message'].get('weights', None))[0]
         event['message'] = message_template.format(**event)
 
     print(event)  # Debug statement to print the complete event
