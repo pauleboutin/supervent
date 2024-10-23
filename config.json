@@ -4,20 +4,32 @@
       "vendor": "F5 Networks BIG-IP",
       "timestamp_format": "UTC",
       "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%Y-%m-%dT%H:%M:%SZ"
+        },
+        "src_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "dst_ip": {
+          "type": "string",
+          "format": "ip"
+        },
         "action": {
           "type": "string",
           "allowed_values": ["ALLOW", "DENY"],
           "weights": [0.7, 0.3]
         },
-        "response_time": {
-          "type": "int",
-          "constraints": {
-            "min": 1,
-            "max": 1000
-          },
-          "distribution": "normal",
-          "mean": 500,
-          "stddev": 100
+        "service": {
+          "type": "string",
+          "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"],
+          "weights": [0.5, 0.3, 0.1, 0.1]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
+          "weights": [0.4, 0.3, 0.2, 0.1]
         }
       }
     },
@@ -25,19 +37,65 @@
       "vendor": "Cisco ASA Firewall",
       "timestamp_format": "ISO",
       "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%Y-%m-%dT%H:%M:%SZ"
+        },
+        "src_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "dst_ip": {
+          "type": "string",
+          "format": "ip"
+        },
         "action": {
           "type": "string",
           "allowed_values": ["ALLOW", "DENY"],
           "weights": [0.6, 0.4]
         },
-        "response_time": {
-          "type": "int",
-          "constraints": {
-            "min": 1,
-            "max": 2000
-          },
-          "distribution": "exponential",
-          "lambda": 0.005
+        "service": {
+          "type": "string",
+          "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"],
+          "weights": [0.5, 0.3, 0.1, 0.1]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
+          "weights": [0.4, 0.3, 0.2, 0.1]
+        }
+      }
+    },
+    {
+      "vendor": "Juniper SRX Series",
+      "timestamp_format": "UTC",
+      "fields": {
+        "timestamp": {
+          "type": "datetime",
+          "format": "%Y-%m-%dT%H:%M:%SZ"
+        },
+        "src_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "dst_ip": {
+          "type": "string",
+          "format": "ip"
+        },
+        "action": {
+          "type": "string",
+          "allowed_values": ["PERMIT", "DENY"],
+          "weights": [0.8, 0.2]
+        },
+        "service": {
+          "type": "string",
+          "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"],
+          "weights": [0.4, 0.4, 0.1, 0.1]
+        },
+        "user": {
+          "type": "string",
+          "allowed_values": ["john_doe", "jane_smith", "admin", "guest"],
+          "weights": [0.3, 0.4, 0.2, 0.1]
         }
       }
     },
@@ -405,8 +463,16 @@
           "formats": [
             "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
             "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
-            "{timestamp} - INFO - Application started successfully"
-          ]
+            "{timestamp} - INFO - Application started successfully",
+            "{timestamp} - DEBUG - Debugging information: variable x = 42",
+            "{timestamp} - TRACE - Trace log: entering function foo()",
+            "{timestamp} - FATAL - Fatal error: out of memory",
+            "{timestamp} - NOTICE - Notice: configuration file updated",
+            "{timestamp} - CRITICAL - Critical issue: database connection lost",
+            "{timestamp} - ALERT - Alert: high memory usage detected",
+            "{timestamp} - EMERGENCY - Emergency: system shutdown initiated"
+          ],
+          "weights": [0.1, 0.1, 0.2, 0.1, 0.1, 0.05, 0.1, 0.1, 0.1, 0.05]
         }
       }
     }
