@@ -10,16 +10,27 @@ import argparse
 import signal
 import sys
 import numpy as np
+import psycopg2
 
 DEFAULT_BATCH_SIZE = 100
 
 class EventGenerator:
-    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE):
+    def __init__(self, dataset, api_key, batch_size=DEFAULT_BATCH_SIZE, postgres_config=None):
         self.dataset = dataset
         self.api_key = api_key
         self.url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
         self.batch_size = batch_size
         self.batch = []
+        self.postgres_conn = None
+
+        if postgres_config:
+            self.postgres_conn = psycopg2.connect(
+                host=postgres_config['host'],
+                port=postgres_config['port'],
+                dbname=postgres_config['dbname'],
+                user=postgres_config['user'],
+                password=postgres_config['password']
+            )
 
     async def emit(self, record):
         # Strip "custom." prefix from keys
@@ -45,7 +56,21 @@ class EventGenerator:
                     print(f"Failed to send batch: {response.status}")
                 else:
                     print("Batch sent successfully")
+
+        if self.postgres_conn:
+            self.send_to_postgres(self.batch)
+
         self.batch = []
+
+    def send_to_postgres(self, batch):
+        cursor = self.postgres_conn.cursor()
+        for record in batch:
+            columns = record.keys()
+            values = [record[column] for column in columns]
+            insert_statement = f"INSERT INTO {self.dataset} ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(values))})"
+            cursor.execute(insert_statement, values)
+        self.postgres_conn.commit()
+        cursor.close()
 
 # Load configuration from config.json
 def load_config(file_path):
@@ -75,24 +100,10 @@ def generate_event(source_config):
                 else:
                     event[field] = random.choice(details['allowed_values'])
             else:
-                if field == "message":
-                    if 'formats' in details:
-                        selected_format = random.choice(details['formats'])
-                        event[field] = selected_format.format(
-                            timestamp=datetime.now().strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ')),
-                            src_ip=generate_random_ip_address() if '{src_ip}' in selected_format else '',
-                            dst_ip=generate_random_ip_address() if '{dst_ip}' in selected_format else '',
-                            ip_address=generate_random_ip_address() if '{ip_address}' in selected_format else ''
-                        )
-                    else:
-                        event[field] = details['format'].format(
-                            timestamp=datetime.now().strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ')),
-                            src_ip=generate_random_ip_address() if '{src_ip}' in details['format'] else '',
-                            dst_ip=generate_random_ip_address() if '{dst_ip}' in details['format'] else '',
-                            ip_address=generate_random_ip_address() if '{ip_address}' in details['format'] else ''
-                        )
+                if details.get('format') == 'ip':
+                    event[field] = generate_random_ip_address()
                 else:
-                    event[field] = generate_random_username() if field == "user" else generate_random_ip_address()
+                    event[field] = uuid.uuid4().hex
         elif details['type'] == 'int':
             if 'allowed_values' in details:
                 if 'weights' in details:
@@ -129,42 +140,6 @@ def generate_event(source_config):
 def generate_random_ip_address():
     return f"{random.randint(1, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(1, 255)}"
 
-# Generate a random username based on Zipf's law
-def generate_random_username():
-    usernames = [
-        "john_doe", "jane_smith", "mohamed_ali", "li_wei", "maria_garcia",
-        "yuki_tanaka", "olga_petrov", "raj_kumar", "fatima_zahra", "chen_wang",
-        "ahmed_hassan", "isabella_rossi", "david_jones", "sophia_martinez", "emily_clark",
-        "noah_brown", "mia_wilson", "lucas_miller", "oliver_davis", "ava_moore",
-        "ethan_taylor", "amelia_anderson", "james_thomas", "harper_jackson", "benjamin_white",
-        "liam_johnson", "emma_rodriguez", "william_lee", "sophia_kim", "mason_martin",
-        "elijah_hernandez", "logan_lopez", "alexander_gonzalez", "sebastian_perez", "daniel_hall",
-        "matthew_young", "henry_king", "jack_wright", "levi_scott", "isaac_green",
-        "gabriel_baker", "julian_adams", "jayden_nelson", "lucas_carter", "anthony_mitchell",
-        "grayson_perez", "dylan_roberts", "leo_turner", "jaxon_phillips", "asher_campbell",
-        "ananya_sharma", "arjun_patel", "priya_singh", "vikram_gupta", "neha_verma",
-        "sanjay_rana", "deepika_kapoor", "ravi_mehta", "sara_khan", "manoj_joshi",
-        "željko_ivanović", "šime_šarić", "đorđe_đorđević", "čedomir_čolić", "žana_živković",
-        "miloš_milošević", "ana_marija", "ivan_ivanov", "petar_petrov", "nikola_nikolić",
-        "marta_novak", "katarina_kovač", "tomaž_tomažič", "matej_matejić", "vanja_vuković",
-        "dragana_dimitrijević", "bojan_bojović", "milica_milovanović", "stefan_stefanović", "vanja_vasić",
-        "igor_ilić", "jelena_jovanović", "marko_marković", "tanja_tomić", "zoran_zorić"
-    ]
-
-    # Generate weights using Zipf's law
-    weights = [1.0 / (i + 1) for i in range(len(usernames))]
-    total_weight = sum(weights)
-    normalized_weights = [w / total_weight for w in weights]
-
-    # Select a username based on the weights
-    r = random.random()
-    cumulative_weight = 0.0
-    for username, weight in zip(usernames, normalized_weights):
-        cumulative_weight += weight
-        if r < cumulative_weight:
-            return username
-    return usernames[-1]
-
 # Signal handler to gracefully exit on ^C or kill signal
 def signal_handler(signal, frame):
     print("Received interrupt signal, sending remaining events...")
@@ -179,14 +154,30 @@ async def main():
     parser.add_argument('--axiom_dataset', type=str, required=True, help='Axiom dataset name')
     parser.add_argument('--axiom_api_key', type=str, required=True, help='Axiom API key')
     parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
+    parser.add_argument('--postgres_host', type=str, help='PostgreSQL host')
+    parser.add_argument('--postgres_port', type=int, default=5432, help='PostgreSQL port')
+    parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
+    parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
+    parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
     args = parser.parse_args()
 
     config = load_config(args.config)
     dataset = args.axiom_dataset
     api_key = args.axiom_api_key
     batch_size = args.batch_size
+
+    postgres_config = None
+    if args.postgres_host and args.postgres_db and args.postgres_user and args.postgres_password:
+        postgres_config = {
+            'host': args.postgres_host,
+            'port': args.postgres_port,
+            'dbname': args.postgres_db,
+            'user': args.postgres_user,
+            'password': args.postgres_password
+        }
+
     global event_generator
-    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size)
+    event_generator = EventGenerator(dataset=dataset, api_key=api_key, batch_size=batch_size, postgres_config=postgres_config)
 
     # Set up signal handling to gracefully exit on ^C or kill signal
     signal.signal(signal.SIGINT, signal_handler)

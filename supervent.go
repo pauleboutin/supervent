@@ -62,7 +62,7 @@ func NewEventGenerator(dataset, apiKey string, batchSize int, postgresConfig *Po
 	}
 
 	if postgresConfig != nil {
-		connStr := fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+		connStr := fmt.Sprintf("host=%s port=% dbname=%s user=%s password=%s sslmode=disable",
 			postgresConfig.Host, postgresConfig.Port, postgresConfig.DBName, postgresConfig.User, postgresConfig.Password)
 		db, err := sql.Open("postgres", connStr)
 		if err != nil {
@@ -197,7 +197,7 @@ func generateEvent(sourceConfig SourceConfig) map[string]interface{} {
 		case "datetime":
 			event[field] = generateDatetime(details, sourceConfig.TimestampFormat)
 		case "string":
-			event[field] = generateString(details, field)
+			event[field] = generateString(details)
 		case "int":
 			event[field] = generateInt(details)
 		}
@@ -221,7 +221,7 @@ func generateDatetime(details Field, timestampFormat string) string {
 	}
 }
 
-func generateString(details Field, fieldName string) string {
+func generateString(details Field) string {
 	if len(details.AllowedValues) > 0 {
 		if len(details.Weights) > 0 {
 			return weightedChoice(details.AllowedValues, details.Weights)
@@ -232,7 +232,7 @@ func generateString(details Field, fieldName string) string {
 		selectedFormat := details.Formats[rand.Intn(len(details.Formats))]
 		return fmt.Sprintf(selectedFormat, time.Now().Format(details.Format))
 	}
-	if fieldName == "client_ip" || fieldName == "server_ip" || fieldName == "source_ip" || fieldName == "destination_ip" {
+	if details.Format == "ip" {
 		return generateRandomIPAddress()
 	}
 	return uuid.New().String()
