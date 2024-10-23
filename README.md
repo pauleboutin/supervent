@@ -216,7 +216,7 @@ For config.json or other config file
       "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
     ]
     ```
-- **regions*
+- **region**
   - **Description**: Specifies the regions (locales) to use for generating usernames.
   - **Type**: Array of Strings
   - **Example Values**: `["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"]`
@@ -312,36 +312,7 @@ For config.json or other config file
 
 ### Username Groups
 
-The `username_groups` section defines different groups of usernames. Each group specifies the regions and the number of usernames to generate. Here is an example configuration:
-
-```json
-{
-  "username_groups": {
-    "global_users": {
-      "regions": ["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"],
-      "count": 1000
-    },
-    "outsourced_partner": {
-      "regions": ["en_IN"],
-      "count": 500
-    }
-  }
-}
-```
-
-- **Regions**: Each group can specify one or more regions. The `faker` library uses these regions to generate names that are representative of the specified locales.
-- **Count**: The `count` field specifies the total number of usernames to generate for the group.
-- **Distribution**: The usernames are distributed evenly across the specified regions. If the count is not perfectly divisible by the number of regions, the remaining usernames are distributed randomly among the regions.
-
-#### Example
-
-Given the above configuration, the application will generate:
-- 1000 usernames for the `global_users` group, distributed across the specified regions (`en_US`, `zh_CN`, `es_ES`, `hi_IN`, `ar_EG`, `pt_BR`).
-- 500 usernames for the `outsourced_partner` group, all generated using the `en_IN` region.
-
-### Full Configuration Example
-
-Here is a full example of the file:///Users/paul/vsc/supervent/config.json file, including the `username_groups` section:
+The `username_groups` section defines different groups of usernames. Each group specifies the regions and the number of usernames to generate. Here is an example configuration: This example would great 1000 usernames typically found in China, Spain, US, UK, Egypt and Portugal, and a separate group of 500 names solely in India. The Fictional app would generate events whosse user: field rotates among 20 of the 1000 names in global_users.
 
 ```json
 {
@@ -355,110 +326,22 @@ Here is a full example of the file:///Users/paul/vsc/supervent/config.json file,
       "count": 500
     }
   },
-  "sources": [
+ "sources": [
     {
-      "vendor": "F5 Networks BIG-IP",
-      "timestamp_format": "UTC",
+      "vendor": "Fictional app",
       "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "%Y-%m-%dT%H:%M:%SZ"
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ip"
-        },
-        "dst_ip": {
-          "type": "string",
-          "format": "ip"
-        },
-        "action": {
-          "type": "string",
-          "allowed_values": ["ALLOW", "DENY"],
-          "weights": [0.7, 0.3]
-        },
-        "service": {
-          "type": "string",
-          "allowed_values": ["HTTP", "HTTPS", "FTP", "SSH"],
-          "weights": [0.4, 0.4, 0.1, 0.1]
-        },
         "user": {
           "type": "string",
           "group": "global_users",
-          "count": 100
-        },
-        "message": {
-          "type": "string",
-          "messages": [
-            "{timestamp} {src_ip} -> {dst_ip} {action} {service} by {user}"
-          ]
-        }
-      }
-    },
-    {
-      "vendor": "Linux SSH Server",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "login_attempts": {
-          "type": "int",
-          "constraints": {
-            "min": 0,
-            "max": 10
-          }
-        },
-        "timestamp": {
-          "type": "datetime",
-          "format": "%b %d %H:%M:%S"
-        },
-        "user": {
-          "type": "string",
-          "group": "global_users",
-          "count": 100
-        },
-        "pid": {
-          "type": "int",
-          "constraints": {
-            "min": 1000,
-            "max": 9999
-          }
-        },
-        "src_ip": {
-          "type": "string",
-          "format": "ip"
-        },
-        "message": {
-          "type": "string",
-          "messages": [
-            "{timestamp} auth-server1 sshd[{pid}]: Accepted password for {user} from {src_ip} port 22 ssh2",
-            "{timestamp} auth-server1 sshd[{pid}]: Failed password for invalid user from {src_ip} port 22 ssh2"
-          ]
-        }
-      }
-    },
-    {
-      "vendor": "Windows Server",
-      "timestamp_format": "RFC3339",
-      "fields": {
-        "timestamp": {
-          "type": "datetime",
-          "format": "%b %d %H:%M:%S"
-        },
-        "user": {
-          "type": "string",
-          "group": "global_users",
-          "count": 50
-        },
-        "message": {
-          "type": "string",
-          "messages": [
-            "{timestamp} WIN-SERVER1 Microsoft-Windows-Security-Auditing[4624]: An account was successfully logged on. Logon Type: 2, User: {user}",
-            "{timestamp} WIN-SERVER1 Microsoft-Windows-Security-Auditing[4740]: A user account was locked out. Account Name: {user}"
-          ]
+          "count": 20
         }
       }
     }
-  ]
 }
 ```
 
-By following this configuration, you can ensure that the generated usernames are diverse and representative of the specified regions, making the generated events more realistic and globally representative.
+- **Regions**: Each group can specify one or more regions. The `faker` library uses these regions to generate names that are representative of the specified locales.
+- **Count**: The `count` field specifies the total number of usernames to generate for the group.
+- **Distribution**: The usernames are distributed evenly across the specified regions. If the count is not perfectly divisible by the number of regions, the remaining usernames are distributed randomly among the regions.
+
+
