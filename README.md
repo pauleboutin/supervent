@@ -337,6 +337,7 @@ The `username_groups` section defines different groups of usernames. Each group 
         }
       }
     }
+]
 }
 ```
 
