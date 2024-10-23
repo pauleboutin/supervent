@@ -156,7 +156,7 @@ For config.json or other config file
   - **Example Values**: `["ALLOW", "DENY"]`
 
 - **weights**
-  - **Description**: Specifies the relative frequency of values in the `allowed_values` list.
+  - **Description**: Specifies the relative frequency of values in the `allowed_values` list. There must be as many weights as there are allowed_values in the two lists, otherwise weights are ignored.
   - **Type**: List of floats
   - **Example Values**: `[0.7, 0.3]`
 
