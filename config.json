@@ -3,7 +3,7 @@
     "username_groups": {
       "global_users": {
         "regions": ["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"],
-        "count": 1000
+        "count": 10000
       },
       "outsourced_partner": {
         "regions": ["en_IN"],
@@ -629,8 +629,8 @@
         },
         "user": {
           "type": "string",
-          "allowed_values": ["JohnDoe", "JaneSmith", "AdminUser", "GuestUser"],
-          "weights": [0.4, 0.3, 0.2, 0.1]
+          "group": "global_users",
+          "count": 2500
         },
         "GUID": {
           "type": "string",

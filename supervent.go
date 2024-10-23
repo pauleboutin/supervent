@@ -123,7 +123,7 @@ func (eg *EventGenerator) SendBatch() {
 	} else if resp.StatusCode() != fasthttp.StatusOK {
 		log.Printf("Failed to send batch: %d", resp.StatusCode())
 	} else {
-		fmt.Println("Batch sent successfully")
+		// fmt.Println("Batch sent successfully")
 	}
 
 	if eg.PostgresConn != nil {
@@ -384,7 +384,7 @@ func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]strin
 			usernames[groupName] = append(usernames[groupName], fake.Person().Name())
 		}
 	}
-	fmt.Println("Generated Usernames:", usernames) // Debug print
+	// fmt.Println("Generated Usernames:", usernames) // Debug print
 	return usernames
 }
 

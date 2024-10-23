@@ -46,7 +46,7 @@ class EventGenerator:
     async def send_batch(self):
         if not self.batch:
             return
-        print("sending batch")
+        # print("sending batch")
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.api_key}"
@@ -55,8 +55,8 @@ class EventGenerator:
             async with session.post(self.url, headers=headers, json=self.batch) as response:
                 if response.status != 200:
                     print(f"Failed to send batch: {response.status}")
-                else:
-                    print("Batch sent successfully")
+                # else:
+                    # print("Batch sent successfully")
 
         if self.postgres_conn:
             self.send_to_postgres(self.batch)
@@ -78,7 +78,7 @@ def load_config(file_path):
     try:
         with open(file_path, 'r') as file:
             config = json.load(file)
-        print("Configuration loaded successfully")
+        # print("Configuration loaded successfully")
         return config
     except Exception as e:
         print(f"Failed to load configuration: {e}")
@@ -108,7 +108,7 @@ def generate_usernames(groups_config):
             fake = Faker(random.choice(regions))
             usernames[group_name].append(fake.name())
 
-    print("Generated Usernames:", usernames)  # Debug print
+    # print("Generated Usernames:", usernames)  # Debug print
     return usernames
 
 # Generate a random event based on the source configuration
@@ -179,7 +179,7 @@ async def main():
     parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
     args = parser.parse_args()
 
-    print("Arguments parsed successfully")
+    # print("Arguments parsed successfully")
 
     config = load_config(args.config)
     dataset = args.axiom_dataset
@@ -206,7 +206,7 @@ async def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    print("Starting event generation")
+    # print("Starting event generation")
 
     # Generate events in a round-robin fashion indefinitely
     while True:
