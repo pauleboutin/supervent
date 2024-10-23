@@ -20,8 +20,8 @@ boutin@gmail.com
 ## Command-Line Arguments
 
 - **--config**: Specifies the path to the configuration file. If not provided, it defaults to config.json.
-- **--dataset**: Specifies the Axiom dataset name. This parameter is required.
-- **--api_key**: Specifies the Axiom API key. This parameter is required.
+- **--axiom_dataset**: Specifies the Axiom dataset name. This parameter is required.
+- **--axiom_api_key**: Specifies the Axiom API key. This parameter is required.
 - **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
 - **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
 - **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
@@ -36,13 +36,13 @@ boutin@gmail.com
   - **Default**: config.json
   - **Example**: `--config /path/to/config.json`
 
-- **--dataset**
+- **--axiom_dataset**
   - **Description**: Axiom dataset name.
   - **Type**: String
   - **Required**: Yes
   - **Example**: `--dataset supervent`
 
-- **--api_key**
+- **--axiom_api_key**
   - **Description**: Axiom API key.
   - **Type**: String
   - **Required**: Yes
@@ -86,11 +86,11 @@ boutin@gmail.com
 
 Go version
 ```sh
-./supervent --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+./supervent --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 Python version
 ```sh
-python ./supervent.py --config /path/to/config.json --dataset supervent --api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+python ./supervent.py --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 
 **To send to a PostgreSQL database**
@@ -207,14 +207,89 @@ For config.json or other config file
   - **Type**: String
   - **Example Values**: `"%Y-%m-%dT%H:%M:%SZ"`
 
-- **formats**
-  - **Description**: Specifies the formats for the `message` field.
+- **messages**
+  - **Description**: Specifies the formats for the `message` field. This is to enable old-school non-key/value syslog messages. The `messages` field specifies the formats for the event text's `message` field. It is a list of strings, where each string can contain placeholders that will be replaced with actual values when generating events.
   - **Type**: List of strings
   - **Example Values**:
     ```json
-    [
-      "{timestamp} - ERROR - An error occurred while processing the request. Exception: java.lang.NullPointerException",
-      "{timestamp} - WARN - Slow response time detected. Response time: 5000ms",
-      "{timestamp} - INFO - Application started successfully"
+    "messages": [
+      "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
     ]
     ```
+    
+### Example Messages Configuration
+  
+  Here is a full example configuration snippet for `Apache HTTP Server` that includes the `messages` field:
+  
+  ```json
+  {
+    "vendor": "Apache HTTP Server",
+    "timestamp_format": "Unix",
+    "fields": {
+      "src_ip": {
+        "type": "string",
+        "format": "ip"
+      },
+      "timestamp": {
+        "type": "datetime",
+        "format": "%d/%b/%Y:%H:%M:%S %z"
+      },
+      "method": {
+        "type": "string",
+        "allowed_values": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"],
+        "weights": [0.5, 0.2, 0.05, 0.05, 0.05, 0.05, 0.1]
+      },
+      "url": {
+        "type": "string",
+        "allowed_values": [
+          "/index.html", "/login", "/nonexistent.html", "/dashboard", "/admin",
+          "/api/v1/resource", "/api/v1/resource/123", "/contact", "/", "/home",
+          "/submit-form", "/user/profile", "/search?q=test", "/logout", "/blog",
+          "/api/v1/resource/456", "/about", "/register", "/privacy", "/sitemap.xml",
+          "/robots.txt", "/comments"
+        ],
+        "weights": [0.3, 0.05, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.3, 0.02, 0.01, 0.01, 0.01, 0.01, 0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+      },
+      "protocol": {
+        "type": "string",
+        "allowed_values": ["HTTP/1.0", "HTTP/1.1", "HTTP/2.0"],
+        "weights": [0.1, 0.8, 0.1]
+      },
+      "status_code": {
+        "type": "int",
+        "allowed_values": [200, 201, 204, 302, 304, 401, 403, 404, 500],
+        "weights": [0.7, 0.05, 0.05, 0.05, 0.05, 0.02, 0.02, 0.05, 0.01]
+      },
+      "response_size": {
+        "type": "int",
+        "constraints": {
+          "min": 0,
+          "max": 5000
+        }
+      },
+      "referrer": {
+        "type": "string",
+        "allowed_values": ["-", "http://example.com", "http://example.com/form", "http://example.com/profile", "http://example.com/blog"],
+        "weights": [0.7, 0.1, 0.05, 0.05, 0.1]
+      },
+      "user_agent": {
+        "type": "string",
+        "allowed_values": [
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
+          "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36",
+          "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0",
+          "curl/7.68.0",
+          "PostmanRuntime/7.26.8"
+        ],
+        "weights": [0.4, 0.2, 0.1, 0.1, 0.1, 0.1]
+      },
+      "message": {
+        "type": "string",
+        "messages": [
+          "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
+        ]
+      }
+    }
+  }
+  ```
