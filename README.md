@@ -216,7 +216,7 @@ For config.json or other config file
       "{src_ip} - - [{timestamp}] \"{method} {url} {protocol}\" {status_code} {response_size} \"{referrer}\" \"{user_agent}\""
     ]
     ```
-- **region**
+- **region** (not supported in Go version yet. I'm looking for a Faker-like package for Go that supports locales.)
   - **Description**: Specifies the regions (locales) to use for generating usernames.
   - **Type**: Array of Strings
   - **Example Values**: `["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"]`
