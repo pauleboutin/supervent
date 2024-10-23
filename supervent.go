@@ -445,6 +445,6 @@ func main() {
 			event := generateEvent(source, usernames)
 			eventGenerator.Emit(event)
 		}
-		time.Sleep(1 * time.Second) // Adjust the sleep duration as needed
+		//time.Sleep(1 * time.Second) // Adjust the sleep duration as needed
 	}
 }
