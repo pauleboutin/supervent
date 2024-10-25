@@ -14,8 +14,8 @@ import (
 
 	_ "github.com/lib/pq"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/google/uuid"
-	"github.com/jaswdr/faker"
 	"github.com/valyala/fasthttp"
 )
 
@@ -372,19 +372,33 @@ func printEvent(event map[string]interface{}) {
 	}
 	fmt.Printf("%s\n", eventJSON)
 }
+
 func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]string {
 	usernames := make(map[string][]string)
 	for groupName, groupDetails := range groupsConfig {
+		regions := groupDetails.Regions
 		count := groupDetails.Count
 		usernames[groupName] = []string{}
 
-		fake := faker.NewWithSeed(rand.NewSource(0)) // Ensure reproducibility
+		// Distribute the count evenly across the regions
+		namesPerRegion := count / len(regions)
+		extraNames := count % len(regions)
 
-		for i := 0; i < count; i++ {
-			usernames[groupName] = append(usernames[groupName], fake.Person().Name())
+		for _, region := range regions {
+			_ = region // No-op to avoid unused variable warning
+			for i := 0; i < namesPerRegion; i++ {
+				username := gofakeit.Username() // no region support in Go for now
+				usernames[groupName] = append(usernames[groupName], username)
+			}
+		}
+
+		// Add extra names to make up the total count
+		for i := 0; i < extraNames; i++ {
+			username := gofakeit.Username()
+			usernames[groupName] = append(usernames[groupName], username)
 		}
 	}
-	// fmt.Println("Generated Usernames:", usernames) // Debug print
+	fmt.Println("Generated Usernames:", usernames) // Debug print
 	return usernames
 }
 
