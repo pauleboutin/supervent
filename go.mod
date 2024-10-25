@@ -3,8 +3,8 @@ module github.com/pboutin-ai/supervent
 go 1.23.1
 
 require (
+	github.com/brianvoe/gofakeit/v6 v6.28.0
 	github.com/google/uuid v1.6.0
-	github.com/jaswdr/faker v1.19.1
 )
 
 require (
