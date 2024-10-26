@@ -19,6 +19,35 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+// Define logging levels
+const (
+	DEBUG = iota
+	INFO
+	WARNING
+	ERROR
+	CRITICAL
+)
+
+var logLevel int
+
+// Custom log function
+func logMessage(level int, message string) {
+	if level >= logLevel {
+		switch level {
+		case DEBUG:
+			log.Printf("DEBUG: %s", message)
+		case INFO:
+			log.Printf("INFO: %s", message)
+		case WARNING:
+			log.Printf("WARNING: %s", message)
+		case ERROR:
+			log.Printf("ERROR: %s", message)
+		case CRITICAL:
+			log.Printf("CRITICAL: %s", message)
+		}
+	}
+}
+
 const DEFAULT_BATCH_SIZE = 100
 
 type Config struct {
@@ -98,7 +127,7 @@ func (eg *EventGenerator) SendBatch() {
 		return
 	}
 
-	fmt.Println("sending batch")
+	logMessage(DEBUG, "sending batch")
 	headers := map[string]string{
 		"Content-Type":  "application/json",
 		"Authorization": fmt.Sprintf("Bearer %s", eg.APIKey),
@@ -122,9 +151,9 @@ func (eg *EventGenerator) SendBatch() {
 	if err := client.Do(req, resp); err != nil {
 		log.Printf("Failed to send batch: %v", err)
 	} else if resp.StatusCode() != fasthttp.StatusOK {
-		log.Printf("Failed to send batch: %d", resp.StatusCode())
+		logMessage(ERROR, fmt.Sprintf("Failed to send batch: %d", resp.StatusCode()))
 	} else {
-		// fmt.Println("Batch sent successfully")
+		logMessage(DEBUG, fmt.Sprintf("Batch sent successfully"))
 	}
 
 	if eg.PostgresConn != nil {
@@ -148,7 +177,7 @@ func (eg *EventGenerator) SendToPostgres(batch []map[string]interface{}) {
 			eg.Dataset, join(columns, ","), placeholders(len(values)))
 		_, err := eg.PostgresConn.Exec(insertStatement, values...)
 		if err != nil {
-			log.Printf("Failed to insert record into PostgreSQL: %v", err)
+			logMessage(ERROR, fmt.Sprintf("Failed to insert record into PostgreSQL: %v", err))
 		}
 	}
 }
@@ -239,7 +268,12 @@ func generateEvent(sourceConfig SourceConfig, usernames map[string][]string) map
 			event["message"] = replacePlaceholders(selectedFormat, event)
 		}
 	}
-	printEvent(event) // Debug statement to print the complete event
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		logMessage(ERROR, fmt.Sprintf("Failed to marshal event for debugging: %v", err))
+	} else {
+		logMessage(DEBUG, string(eventJSON)) // Debug statement to print the complete event
+	}
 	return event
 }
 
@@ -371,7 +405,7 @@ func replacePlaceholders(format string, values map[string]interface{}) string {
 func printEvent(event map[string]interface{}) {
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
-		log.Printf("Failed to marshal event for debugging: %v", err)
+		logMessage(ERROR, fmt.Sprintf("Failed to marshal event for debugging: %v", err))
 		return
 	}
 	fmt.Printf("%s\n", eventJSON)
@@ -402,11 +436,12 @@ func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]strin
 			usernames[groupName] = append(usernames[groupName], username)
 		}
 	}
-	fmt.Println("Generated Usernames:", usernames) // Debug print
+	logMessage(DEBUG, fmt.Sprintf("Generated Usernames: %v", usernames)) // Debug print
 	return usernames
 }
 
 func main() {
+	logLevelStr := flag.String("log_level", "INFO", "Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 	configPath := flag.String("config", "sources.json", "Path to the configuration file")
 	axiomDataset := flag.String("axiom_dataset", "", "Axiom dataset name")
 	axiomAPIKey := flag.String("axiom_api_key", "", "Axiom API key")
@@ -417,6 +452,22 @@ func main() {
 	postgresUser := flag.String("postgres_user", "", "PostgreSQL user")
 	postgresPassword := flag.String("postgres_password", "", "PostgreSQL password")
 	flag.Parse()
+
+	// Set log level
+	switch strings.ToUpper(*logLevelStr) {
+	case "DEBUG":
+		logLevel = DEBUG
+	case "INFO":
+		logLevel = INFO
+	case "WARNING":
+		logLevel = WARNING
+	case "ERROR":
+		logLevel = ERROR
+	case "CRITICAL":
+		logLevel = CRITICAL
+	default:
+		log.Fatalf("Unknown log level: %s", *logLevelStr)
+	}
 
 	config, err := loadConfig(*configPath)
 	if err != nil {
@@ -434,6 +485,7 @@ func main() {
 		}
 	}
 
+	logMessage(INFO, `Starting Event Generator`)
 	eventGenerator := NewEventGenerator(*axiomDataset, *axiomAPIKey, *batchSize, postgresConfig)
 
 	// Generate usernames based on the specified groups
@@ -443,7 +495,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, os.Kill)
 	go func() {
 		<-sigChan
-		fmt.Println("Received interrupt signal, sending remaining events...")
+		logMessage(INFO, "Received interrupt signal, sending remaining events...")
 		eventGenerator.SendBatch()
 		if eventGenerator.PostgresConn != nil {
 			eventGenerator.PostgresConn.Close()

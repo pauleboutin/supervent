@@ -165,7 +165,7 @@ def replace_placeholders(format, values):
 
 # Signal handler to gracefully exit on ^C or kill signal
 def signal_handler(signal, frame):
-    logging.debug("Received interrupt signal, sending remaining events...")
+    logging.info("Received interrupt signal, sending remaining events...")
     if len(event_generator.batch) > 0:
         asyncio.create_task(event_generator.send_batch())
     sys.exit(0)
