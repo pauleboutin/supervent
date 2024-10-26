@@ -182,7 +182,7 @@ async def main():
     parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
     parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
     parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
-    parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
+    parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
                         help="Set the logging level")
     args = parser.parse_args()
 
