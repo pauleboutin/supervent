@@ -32,7 +32,8 @@ type UsernameGroup struct {
 }
 
 type SourceConfig struct {
-	Vendor          string           `json:"vendor"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description"`
 	TimestampFormat string           `json:"timestamp_format"`
 	Fields          map[string]Field `json:"fields"`
 }
@@ -200,7 +201,10 @@ func loadConfig(filePath string) (*Config, error) {
 
 func generateEvent(sourceConfig SourceConfig, usernames map[string][]string) map[string]interface{} {
 	event := map[string]interface{}{
-		"Generated-by": sourceConfig.Vendor,
+		"Generated-by": sourceConfig.Name,
+	}
+	if sourceConfig.Description != "" {
+		event["Description"] = sourceConfig.Description
 	}
 	for field, details := range sourceConfig.Fields {
 		switch details.Type {
@@ -403,7 +407,7 @@ func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]strin
 }
 
 func main() {
-	configPath := flag.String("config", "config.json", "Path to the configuration file")
+	configPath := flag.String("config", "sources.json", "Path to the configuration file")
 	axiomDataset := flag.String("axiom_dataset", "", "Axiom dataset name")
 	axiomAPIKey := flag.String("axiom_api_key", "", "Axiom API key")
 	batchSize := flag.Int("batch_size", DEFAULT_BATCH_SIZE, "Batch size for HTTP requests")
@@ -413,10 +417,6 @@ func main() {
 	postgresUser := flag.String("postgres_user", "", "PostgreSQL user")
 	postgresPassword := flag.String("postgres_password", "", "PostgreSQL password")
 	flag.Parse()
-
-	if *axiomDataset == "" || *axiomAPIKey == "" {
-		log.Fatal("axiom_dataset and axiom_api_key are required")
-	}
 
 	config, err := loadConfig(*configPath)
 	if err != nil {

@@ -12,6 +12,7 @@ import sys
 import numpy as np
 import psycopg2
 from faker import Faker
+import logging
 
 DEFAULT_BATCH_SIZE = 100
 
@@ -32,6 +33,7 @@ class EventGenerator:
                 user=postgres_config['user'],
                 password=postgres_config['password']
             )
+            logging.debug("PostgreSQL connection established")
 
     async def emit(self, record):
         # Strip "custom." prefix from keys
@@ -45,6 +47,7 @@ class EventGenerator:
 
     async def send_batch(self):
         if not self.batch:
+            logging.debug("Batch is empty, nothing to send")
             return
         # print("sending batch")
         headers = {
@@ -54,9 +57,9 @@ class EventGenerator:
         async with aiohttp.ClientSession() as session:
             async with session.post(self.url, headers=headers, json=self.batch) as response:
                 if response.status != 200:
-                    print(f"Failed to send batch: {response.status}")
-                # else:
-                    # print("Batch sent successfully")
+                    logging.error(f"Error occurred while sending the batch, status code: {response.status}")
+                else:
+                    logging.debug("Batch sent successfully")
 
         if self.postgres_conn:
             self.send_to_postgres(self.batch)
@@ -73,15 +76,15 @@ class EventGenerator:
         self.postgres_conn.commit()
         cursor.close()
 
-# Load configuration from config.json
+# Load configuration from sources.json
 def load_config(file_path):
     try:
         with open(file_path, 'r') as file:
             config = json.load(file)
-        # print("Configuration loaded successfully")
+        logging.debug("Configuration loaded successfully")
         return config
     except Exception as e:
-        print(f"Failed to load configuration: {e}")
+        logging.error(f"Failed to load configuration: {e}")
         sys.exit(1)
 
 # Generate usernames based on the specified groups
@@ -108,12 +111,14 @@ def generate_usernames(groups_config):
             fake = Faker(random.choice(regions))
             usernames[group_name].append(fake.name())
 
-    # print("Generated Usernames:", usernames)  # Debug print
+    logging.debug(f"Generated Usernames: {usernames}")
     return usernames
 
 # Generate a random event based on the source configuration
 def generate_event(source_config, usernames):
-    event = {"Generated-by": source_config["vendor"]}
+    event = {"Generated-by": source_config["name"]}
+    if "description" in source_config:
+        event["description"] = source_config["description"]
     for field, details in source_config['fields'].items():
         if details['type'] == 'datetime':
             event[field] = datetime.now(timezone.utc).strftime(details.get('format', '%Y-%m-%dT%H:%M:%SZ'))
@@ -144,7 +149,7 @@ def generate_event(source_config, usernames):
         message_template = random.choices(source_config['fields']['message']['messages'], weights=source_config['fields']['message'].get('weights', None))[0]
         event['message'] = replace_placeholders(message_template, event)
 
-    print(event)  # Debug statement to print the complete event
+    logging.debug(event)  # Debug statement to print the complete event
     return event
 
 # Generate a random IP address
@@ -160,7 +165,7 @@ def replace_placeholders(format, values):
 
 # Signal handler to gracefully exit on ^C or kill signal
 def signal_handler(signal, frame):
-    print("Received interrupt signal, sending remaining events...")
+    logging.debug("Received interrupt signal, sending remaining events...")
     if len(event_generator.batch) > 0:
         asyncio.create_task(event_generator.send_batch())
     sys.exit(0)
@@ -168,7 +173,7 @@ def signal_handler(signal, frame):
 # Main function to generate events
 async def main():
     parser = argparse.ArgumentParser(description='Generate and send events.')
-    parser.add_argument('--config', type=str, default='config.json', help='Path to the configuration file')
+    parser.add_argument('--config', type=str, default='sources.json', help='Path to the configuration file')
     parser.add_argument('--axiom_dataset', type=str, required=True, help='Axiom dataset name')
     parser.add_argument('--axiom_api_key', type=str, required=True, help='Axiom API key')
     parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
@@ -177,7 +182,16 @@ async def main():
     parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
     parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
     parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
+    parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
+                        help="Set the logging level")
     args = parser.parse_args()
+
+    if args.log_level == 'NONE':
+        logging.basicConfig(level=logging.CRITICAL + 1)  # Disable logging
+    else:
+        logging.basicConfig(level=getattr(logging, args.log_level), format='%(asctime)s - %(levelname)s - %(message)s')
+
+    logging.info("Starting Event Generator")
 
     # print("Arguments parsed successfully")
 
@@ -203,10 +217,11 @@ async def main():
     usernames = generate_usernames(config.get('username_groups', {}))
 
     # Set up signal handling to gracefully exit on ^C or kill signal
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    from functools import partial
+    signal.signal(signal.SIGINT, partial(signal_handler))
+    signal.signal(signal.SIGTERM, partial(signal_handler))
 
-    # print("Starting event generation")
+    logging.debug("Starting event generation")
 
     # Generate events in a round-robin fashion indefinitely
     while True:
@@ -219,4 +234,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except Exception as e:
-        print(f"Exception occurred: {e}")
+        logging.error(f"Exception occurred: {e}")
