@@ -28,7 +28,7 @@ boutin@gmail.com
 - **--postgres_db**: Specifies the PostgreSQL database name. This parameter is optional.
 - **--postgres_user**: Specifies the PostgreSQL user. This parameter is optional.
 - **--postgres_password**: Specifies the PostgreSQL password. This parameter is optional.
-- **--log-level**: Specifies the level of logging messages to output. This parameter is optional. If not provided, it defaults to `INFO`.
+- **--log_level**: Specifies the level of logging messages to output. This parameter is optional. If not provided, it defaults to `INFO`.
 
 
 - **--config**
@@ -81,11 +81,11 @@ boutin@gmail.com
   - **Type**: String
   - **Example**: `--postgres_password dbpassword`
  
-- **--log-level**
+- **--log_level**
   - **Description**: Level of logging messages to output -- DEBUG,INFO,WARNING,ERROR,CRITICAL,NONE
   - **Type**: String
   - **Default**: INFO
-  - **Example**: `--log-level DEBUG`
+  - **Example**: `--log_level DEBUG`
 
 ### Example Usage
 
