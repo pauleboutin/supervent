@@ -2,18 +2,19 @@
   {
     "username_groups": {
       "global_users": {
-        "regions": ["en_US", "zh_CN", "es_ES", "hi_IN", "ar_EG", "pt_BR"],
+        "regions": ["nl_NL","en_NZ"],
         "count": 10000
       },
       "outsourced_partner": {
         "regions": ["en_IN"],
         "city": "Bengaluru",
-        "count": 500
+        "count": 50
       }
     },
   "sources": [
     {
-      "vendor": "F5 Networks BIG-IP",
+      "name": "source01",
+      "description": "F5 Networks BIG-IP",
       "timestamp_format": "UTC",
       "fields": {
         "timestamp": {
@@ -46,7 +47,8 @@
       }
     },
     {
-      "vendor": "Cisco ASA Firewall",
+      "name": "source02",
+      "description": "Cisco ASA Firewall",
       "timestamp_format": "ISO",
       "fields": {
         "timestamp": {
@@ -79,7 +81,8 @@
       }
     },
     {
-      "vendor": "Juniper SRX Series",
+      "name": "source03",
+      "description": "Juniper SRX Series",
       "timestamp_format": "UTC",
       "fields": {
         "timestamp": {
@@ -112,7 +115,8 @@
       }
     },
     {
-      "vendor": "Apache HTTP Server",
+      "name": "source04",
+      "description": "Apache HTTP Server",
       "timestamp_format": "Unix",
       "fields": {
         "src_ip": {
@@ -176,7 +180,8 @@
       }
     },
     {
-      "vendor": "Outsourced In-House App",
+      "name": "source05",
+      "description": "Outsourced In-House App",
       "timestamp_format": "RFC3339",
       "fields": {
         "timestamp": {
@@ -186,7 +191,7 @@
         "user": {
           "type": "string",
           "group": "outsourced_partner",
-          "count": 500
+          "count": 50
         },
         "pid": {
           "type": "int",
@@ -209,7 +214,8 @@
     },
   
     {
-          "vendor": "Linux SSH Server",
+        "name": "source06",
+          "description": "Linux SSH Server",
           "timestamp_format": "RFC3339",
           "fields": {
             "login_attempts": {
@@ -266,7 +272,8 @@
         },
      
     {
-      "vendor": "MySQL Database",
+      "name": "source07",
+      "description": "MySQL Database",
       "timestamp_format": "ISO",
       "fields": {
         "query_time": {
@@ -297,7 +304,8 @@
       }
     },
     {
-      "vendor": "PostgreSQL Database",
+      "name": "source08",
+      "description": "PostgreSQL Database",
       "timestamp_format": "Unix",
       "fields": {
         "query_time": {
@@ -327,7 +335,8 @@
       }
     },
     {
-      "vendor": "Nginx Server",
+      "name": "source09",
+      "description": "Nginx Server",
       "timestamp_format": "RFC3339",
       "fields": {
         "status_code": {
@@ -359,7 +368,8 @@
       }
     },
     {
-      "vendor": "MongoDB",
+      "name": "source10",
+      "description": "MongoDB",
       "timestamp_format": "UTC",
       "fields": {
         "query_time": {
@@ -389,7 +399,8 @@
       }
     },
     {
-      "vendor": "Redis",
+      "name": "source11",
+      "description": "Redis",
       "timestamp_format": "ISO",
       "fields": {
         "command_time": {
@@ -420,7 +431,8 @@
       }
     },
     {
-      "vendor": "Elasticsearch",
+      "name": "source12",
+      "description": "Elasticsearch",
       "timestamp_format": "Unix",
       "fields": {
         "query_time": {
@@ -450,7 +462,8 @@
       }
     },
     {
-      "vendor": "Kafka",
+      "name": "source13",
+      "description": "Kafka",
       "timestamp_format": "RFC3339",
       "fields": {
         "message_size": {
@@ -483,7 +496,8 @@
       }
     },
     {
-      "vendor": "RabbitMQ",
+      "name": "source14",
+      "description": "RabbitMQ",
       "timestamp_format": "UTC",
       "fields": {
         "message_size": {
@@ -513,7 +527,8 @@
       }
     },
     {
-      "vendor": "Hadoop",
+      "name": "source15",
+      "description": "Hadoop",
       "timestamp_format": "ISO",
       "fields": {
         "job_duration": {
@@ -543,8 +558,8 @@
       }
     },
     {
-      "name": "source13",
-      "vendor": "Java Application Server",
+      "name": "source16",
+      "description": "Java Application Server",
       "event_format": "timestamp, message",
       "timestamp_format": "RFC3339",
       "fields": {
@@ -576,7 +591,8 @@
       }
     },
     {
-      "vendor": "Windows Server",
+      "name": "source17",
+      "description": "Windows Server",
       "timestamp_format": "RFC3339",
       "fields": {
         "timestamp": {
@@ -633,7 +649,8 @@
       }
     },
     {
-      "vendor": "Apple iMac syslog",
+      "name": "source18",
+      "description": "Apple iMac syslog",
       "timestamp_format": "Unix",
       "fields": {
         "timestamp": {
