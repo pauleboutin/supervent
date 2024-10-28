@@ -19,7 +19,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// Define logging levels
+// Logging levels
 const (
 	DEBUG = iota
 	INFO
@@ -48,7 +48,7 @@ func logMessage(level int, message string) {
 	}
 }
 
-const DEFAULT_BATCH_SIZE = 100
+const defaultBatchSize = 100
 
 type Config struct {
 	UsernameGroups map[string]UsernameGroup `json:"username_groups"`
@@ -83,6 +83,7 @@ type Field struct {
 	Group         string                 `json:"group,omitempty"`
 	Count         int                    `json:"count,omitempty"`
 }
+
 type EventGenerator struct {
 	Dataset      string
 	APIKey       string
@@ -153,7 +154,7 @@ func (eg *EventGenerator) SendBatch() {
 	} else if resp.StatusCode() != fasthttp.StatusOK {
 		logMessage(ERROR, fmt.Sprintf("Failed to send batch: %d", resp.StatusCode()))
 	} else {
-		logMessage(DEBUG, fmt.Sprintf("Batch sent successfully"))
+		logMessage(DEBUG, "Batch sent successfully")
 	}
 
 	if eg.PostgresConn != nil {
@@ -183,25 +184,15 @@ func (eg *EventGenerator) SendToPostgres(batch []map[string]interface{}) {
 }
 
 func join(strs []string, sep string) string {
-	result := ""
-	for i, s := range strs {
-		if i > 0 {
-			result += sep
-		}
-		result += s
-	}
-	return result
+	return strings.Join(strs, sep)
 }
 
 func placeholders(n int) string {
-	result := ""
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			result += ","
-		}
-		result += fmt.Sprintf("$%d", i+1)
+	placeholders := make([]string, n)
+	for i := range placeholders {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}
-	return result
+	return strings.Join(placeholders, ",")
 }
 
 type PostgresConfig struct {
@@ -240,25 +231,9 @@ func generateEvent(sourceConfig SourceConfig, usernames map[string][]string) map
 		case "datetime":
 			event[field] = generateDatetime(details, sourceConfig.TimestampFormat)
 		case "string":
-			if details.Group != "" {
-				groupName := details.Group
-				count := details.Count
-				event[field] = usernames[groupName][rand.Intn(count)]
-			} else if len(details.AllowedValues) > 0 {
-				event[field] = weightedChoice(details.AllowedValues, details.Weights)
-			} else if details.Format == "ip" {
-				event[field] = generateRandomIPAddress()
-			} else {
-				event[field] = uuid.New().String()
-			}
+			event[field] = generateString(details, usernames)
 		case "int":
-			if len(details.AllowedValues) > 0 {
-				event[field] = weightedChoiceInt(details.AllowedValues, details.Weights)
-			} else {
-				min := int(details.Constraints["min"].(float64))
-				max := int(details.Constraints["max"].(float64))
-				event[field] = rand.Intn(max-min+1) + min
-			}
+			event[field] = generateInt(details)
 		}
 	}
 	// Handle message field with placeholders
@@ -292,18 +267,14 @@ func generateDatetime(details Field, timestampFormat string) string {
 	}
 }
 
-func generateString(details Field) string {
-	if len(details.AllowedValues) > 0 {
-		if len(details.Weights) > 0 {
-			return weightedChoice(details.AllowedValues, details.Weights).(string)
-		}
-		return details.AllowedValues[rand.Intn(len(details.AllowedValues))].(string)
-	}
-	if len(details.Messages) > 0 {
-		selectedFormat := details.Messages[rand.Intn(len(details.Messages))]
-		return fmt.Sprintf(selectedFormat, time.Now().Format(details.Format))
-	}
-	if details.Format == "ip" {
+func generateString(details Field, usernames map[string][]string) string {
+	if details.Group != "" {
+		groupName := details.Group
+		count := details.Count
+		return usernames[groupName][rand.Intn(count)]
+	} else if len(details.AllowedValues) > 0 {
+		return weightedChoice(details.AllowedValues, details.Weights).(string)
+	} else if details.Format == "ip" {
 		return generateRandomIPAddress()
 	}
 	return uuid.New().String()
@@ -311,10 +282,7 @@ func generateString(details Field) string {
 
 func generateInt(details Field) int {
 	if len(details.AllowedValues) > 0 {
-		if len(details.Weights) > 0 {
-			return weightedChoiceInt(details.AllowedValues, details.Weights)
-		}
-		return int(details.AllowedValues[rand.Intn(len(details.AllowedValues))].(float64))
+		return weightedChoiceInt(details.AllowedValues, details.Weights)
 	}
 
 	min := int(details.Constraints["min"].(float64))
@@ -336,6 +304,7 @@ func generateInt(details Field) int {
 		return rand.Intn(max-min+1) + min
 	}
 }
+
 func generateRandomIPAddress() string {
 	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(256), rand.Intn(256))
 }
@@ -445,7 +414,7 @@ func main() {
 	configPath := flag.String("config", "sources.json", "Path to the configuration file")
 	axiomDataset := flag.String("axiom_dataset", "", "Axiom dataset name")
 	axiomAPIKey := flag.String("axiom_api_key", "", "Axiom API key")
-	batchSize := flag.Int("batch_size", DEFAULT_BATCH_SIZE, "Batch size for HTTP requests")
+	batchSize := flag.Int("batch_size", defaultBatchSize, "Batch size for HTTP requests")
 	postgresHost := flag.String("postgres_host", "", "PostgreSQL host")
 	postgresPort := flag.Int("postgres_port", 5432, "PostgreSQL port")
 	postgresDB := flag.String("postgres_db", "", "PostgreSQL database name")
@@ -485,7 +454,7 @@ func main() {
 		}
 	}
 
-	logMessage(INFO, `Starting Event Generator`)
+	logMessage(INFO, "Starting Event Generator")
 	eventGenerator := NewEventGenerator(*axiomDataset, *axiomAPIKey, *batchSize, postgresConfig)
 
 	// Generate usernames based on the specified groups
@@ -497,9 +466,6 @@ func main() {
 		<-sigChan
 		logMessage(INFO, "Received interrupt signal, sending remaining events...")
 		eventGenerator.SendBatch()
-		if eventGenerator.PostgresConn != nil {
-			eventGenerator.PostgresConn.Close()
-		}
 		if eventGenerator.PostgresConn != nil {
 			eventGenerator.PostgresConn.Close()
 		}
