@@ -410,16 +410,16 @@ func generateUsernames(groupsConfig map[string]UsernameGroup) map[string][]strin
 }
 
 func main() {
-	logLevelStr := flag.String("log_level", "INFO", "Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
+	logLevelStr := flag.String("log-level", "INFO", "Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)")
 	configPath := flag.String("config", "sources.json", "Path to the configuration file")
-	axiomDataset := flag.String("axiom_dataset", "", "Axiom dataset name")
-	axiomAPIKey := flag.String("axiom_api_key", "", "Axiom API key")
-	batchSize := flag.Int("batch_size", defaultBatchSize, "Batch size for HTTP requests")
-	postgresHost := flag.String("postgres_host", "", "PostgreSQL host")
-	postgresPort := flag.Int("postgres_port", 5432, "PostgreSQL port")
-	postgresDB := flag.String("postgres_db", "", "PostgreSQL database name")
-	postgresUser := flag.String("postgres_user", "", "PostgreSQL user")
-	postgresPassword := flag.String("postgres_password", "", "PostgreSQL password")
+	axiomDataset := flag.String("axiom-dataset", "", "Axiom dataset name")
+	axiomAPIKey := flag.String("axiom-api-key", "", "Axiom API key")
+	batchSize := flag.Int("batch-size", defaultBatchSize, "Batch size for HTTP requests")
+	postgresHost := flag.String("postgres-host", "", "PostgreSQL host")
+	postgresPort := flag.Int("postgres-port", 5432, "PostgreSQL port")
+	postgresDB := flag.String("postgres-db", "", "PostgreSQL database name")
+	postgresUser := flag.String("postgres-user", "", "PostgreSQL user")
+	postgresPassword := flag.String("postgres-password", "", "PostgreSQL password")
 	flag.Parse()
 
 	// Set log level

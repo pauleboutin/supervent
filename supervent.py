@@ -174,15 +174,15 @@ def signal_handler(signal, frame):
 async def main():
     parser = argparse.ArgumentParser(description='Generate and send events.')
     parser.add_argument('--config', type=str, default='sources.json', help='Path to the configuration file')
-    parser.add_argument('--axiom_dataset', type=str, required=True, help='Axiom dataset name')
-    parser.add_argument('--axiom_api_key', type=str, required=True, help='Axiom API key')
-    parser.add_argument('--batch_size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
-    parser.add_argument('--postgres_host', type=str, help='PostgreSQL host')
-    parser.add_argument('--postgres_port', type=int, default=5432, help='PostgreSQL port')
-    parser.add_argument('--postgres_db', type=str, help='PostgreSQL database name')
-    parser.add_argument('--postgres_user', type=str, help='PostgreSQL user')
-    parser.add_argument('--postgres_password', type=str, help='PostgreSQL password')
-    parser.add_argument('--log_level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
+    parser.add_argument('--axiom-dataset', type=str, required=True, help='Axiom dataset name')
+    parser.add_argument('--axiom-api-key', type=str, required=True, help='Axiom API key')
+    parser.add_argument('--batch-size', type=int, default=DEFAULT_BATCH_SIZE, help='Batch size for HTTP requests')
+    parser.add_argument('--postgres-host', type=str, help='PostgreSQL host')
+    parser.add_argument('--postgres-port', type=int, default=5432, help='PostgreSQL port')
+    parser.add_argument('--postgres-db', type=str, help='PostgreSQL database name')
+    parser.add_argument('--postgres-user', type=str, help='PostgreSQL user')
+    parser.add_argument('--postgres-password', type=str, help='PostgreSQL password')
+    parser.add_argument('--log-level', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
                         help="Set the logging level")
     args = parser.parse_args()
 
