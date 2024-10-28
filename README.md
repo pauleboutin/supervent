@@ -20,15 +20,15 @@ boutin@gmail.com
 ## Command-Line Arguments
 
 - **--config**: Specifies the path to the configuration file. If not provided, it defaults to sources.json.
-- **--axiom_dataset**: Specifies the Axiom dataset name. This parameter is required.
-- **--axiom_api_key**: Specifies the Axiom API key. This parameter is required.
-- **--batch_size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
-- **--postgres_host**: Specifies the PostgreSQL host. This parameter is optional.
-- **--postgres_port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
-- **--postgres_db**: Specifies the PostgreSQL database name. This parameter is optional.
-- **--postgres_user**: Specifies the PostgreSQL user. This parameter is optional.
-- **--postgres_password**: Specifies the PostgreSQL password. This parameter is optional.
-- **--log_level**: Specifies the level of logging messages to output. This parameter is optional. If not provided, it defaults to `INFO`.
+- **--axiom-dataset**: Specifies the Axiom dataset name. This parameter is required.
+- **--axiom-api-key**: Specifies the Axiom API key. This parameter is required.
+- **--batch-size**: Specifies the batch size for HTTP requests. If not provided, it defaults to `100`.
+- **--postgres-host**: Specifies the PostgreSQL host. This parameter is optional.
+- **--postgres-port**: Specifies the PostgreSQL port. If not provided, it defaults to `5432`.
+- **--postgres-db**: Specifies the PostgreSQL database name. This parameter is optional.
+- **--postgres-user**: Specifies the PostgreSQL user. This parameter is optional.
+- **--postgres-password**: Specifies the PostgreSQL password. This parameter is optional.
+- **--log-level**: Specifies the level of logging messages to output. This parameter is optional. If not provided, it defaults to `INFO`.
 
 
 - **--config**
@@ -37,55 +37,55 @@ boutin@gmail.com
   - **Default**: config.json
   - **Example**: `--config /path/to/sources.json`
 
-- **--axiom_dataset**
+- **--axiom-dataset**
   - **Description**: Axiom dataset name.
   - **Type**: String
   - **Required**: Yes
   - **Example**: `--dataset supervent`
 
-- **--axiom_api_key**
+- **--axiom-api-key**
   - **Description**: Axiom API key.
   - **Type**: String
   - **Required**: Yes
-  - **Example**: `--api_key xaat-0e268974-2001-4c1f-a747-619dac5257f1`
+  - **Example**: `--api-key xaat-0e268974-2001-4c1f-a747-619dac5257f1`
 
-- **--batch_size**
+- **--batch-size**
   - **Description**: Batch size for HTTP requests.
   - **Type**: Integer
   - **Default**: `100`
-  - **Example**: `--batch_size 50`
+  - **Example**: `--batch-size 50`
 
-- **--postgres_host**
+- **--postgres-host**
   - **Description**: PostgreSQL host.
   - **Type**: String
-  - **Example**: `--postgres_host localhost`
+  - **Example**: `--postgres-host localhost`
 
-- **--postgres_port**
+- **--postgres-port**
   - **Description**: PostgreSQL port.
   - **Type**: Integer
   - **Default**: `5432`
-  - **Example**: `--postgres_port 5432`
+  - **Example**: `--postgres-port 5432`
 
-- **--postgres_db**
+- **--postgres-db**
   - **Description**: PostgreSQL database name.
   - **Type**: String
-  - **Example**: `--postgres_db supervent_db`
+  - **Example**: `--postgres-db supervent-db`
 
-- **--postgres_user**
+- **--postgres-user**
   - **Description**: PostgreSQL user.
   - **Type**: String
-  - **Example**: `--postgres_user dbuser`
+  - **Example**: `--postgres-user dbuser`
 
-- **--postgres_password**
+- **--postgres-password**
   - **Description**: PostgreSQL password.
   - **Type**: String
-  - **Example**: `--postgres_password dbpassword`
+  - **Example**: `--postgres-password dbpassword`
  
-- **--log_level**
+- **--log-level**
   - **Description**: Level of logging messages to output -- DEBUG,INFO,WARNING,ERROR,CRITICAL,NONE
   - **Type**: String
   - **Default**: INFO
-  - **Example**: `--log_level DEBUG`
+  - **Example**: `--log-level DEBUG`
 
 ### Example Usage
 
@@ -93,22 +93,22 @@ boutin@gmail.com
 
 Go version
 ```sh
-./supervent --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+./supervent --config /path/to/config.json --axiom-dataset supervent --axiom-api-key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 Python version
 ```sh
-python ./supervent.py --config /path/to/config.json --axiom_dataset supervent --axiom_api_key xaat-0e268974-2001-4c1f-a747-619dactt57f1
+python ./supervent.py --config /path/to/config.json --axiom-dataset supervent --axiom-api-key xaat-0e268974-2001-4c1f-a747-619dactt57f1
 ```
 
 **To send to a PostgreSQL database**
 
 Go version
 ```sh
-./supervent --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres_user dbuser --postgres_password dbpassword
+./supervent --config /path/to/config.json  --postgres-host localhost --postgres-port 5432 --postgres-db supervent_db --postgres-user dbuser --postgres_password dbpassword
 ```
 Python version
 ```sh
-python ./supervent.py --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres_user dbuser --postgres_password dbpassword
+python ./supervent.py --config /path/to/config.json  --postgres_host localhost --postgres_port 5432 --postgres_db supervent_db --postgres-user dbuser --postgres-password dbpassword
 ```
 
 ## Source Configuration Parameters 
