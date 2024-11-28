@@ -1,0 +1,111 @@
+{
+    "sources": {
+      "web_application": {
+        "event_format": {
+          "timestamp": "ISO 8601 format",
+          "severity_text": "string",
+          "severity_number": "integer",
+          "attributes": {
+            "event_type": "string",
+            "user_id": "string",
+            "action": "string",
+            "page": "string",
+            "duration": "integer (in seconds)",
+            "response_code": "integer",
+            "response_time": "integer (in milliseconds)"
+          },
+          "body": "string"
+        },
+        "allowed_values": {
+          "event_type": ["page_view", "button_click", "form_submission"],
+          "action": ["view", "click", "submit"],
+          "severity_text": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
+          "response_code": [200, 404, 500]
+        },
+        "event_types": {
+          "page_view": {
+            "frequency": "every 5 minutes",
+            "volume": 1000
+          },
+          "button_click": {
+            "frequency": "every 10 minutes",
+            "volume": 500
+          },
+          "form_submission": {
+            "frequency": "every 30 minutes",
+            "volume": 200
+          }
+        }
+      },
+      "api_service": {
+        "event_format": {
+          "timestamp": "ISO 8601 format",
+          "severity_text": "string",
+          "severity_number": "integer",
+          "attributes": {
+            "event_type": "string",
+            "request_id": "string",
+            "endpoint": "string",
+            "response_time": "integer (in milliseconds)",
+            "http_method": "string",
+            "http_status_code": "integer",
+            "error_type": "string",
+            "error_message": "string"
+          },
+          "body": "string"
+        },
+        "allowed_values": {
+          "event_type": ["api_call", "error"],
+          "http_method": ["GET", "POST", "PUT", "DELETE"],
+          "http_status_code": [200, 400, 404, 500]
+        },
+        "event_types": {
+          "fetch_product_details": {
+            "frequency": "every 5 minutes",
+            "volume": 800
+          },
+          "submit_order": {
+            "frequency": "every 10 minutes",
+            "volume": 300
+          }
+        }
+      },
+      "database_service": {
+        "event_format": {
+          "timestamp": "ISO 8601 format",
+          "severity_text": "string",
+          "severity_number": "integer",
+          "attributes": {
+            "event_type": "string",
+            "db_operation": "string",
+            "db_statement_type": "string",
+            "db_name": "string",
+            "db_user": "string",
+            "db_connection_id": "string",
+            "db_execution_time_ms": "integer",
+            "db_rows_affected": "integer",
+            "db_error_code": "string",
+            "db_table": "string"
+          },
+          "body": "string"
+        },
+        "allowed_values": {
+          "event_type": ["query_execution", "transaction", "maintenance", "replication"],
+          "db_operation": ["QUERY", "TRANSACTION", "MAINTENANCE", "REPLICATION"],
+          "db_statement_type": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "db_name": ["inventory_db", "user_db"],
+          "db_user": ["inventory_api_user", "admin_user"]
+        },
+        "event_types": {
+          "retrieve_product_stock": {
+            "frequency": "every 5 minutes",
+            "volume": 800
+          },
+          "update_order_status": {
+            "frequency": "every 10 minutes",
+            "volume": 300
+          }
+        }
+      }
+    }
+  }
