@@ -34,15 +34,9 @@ class EventGenerator:
             frequency_minutes = self.get_frequency_in_minutes(details['frequency'])
             if (current_time.minute % frequency_minutes) == 0:  # Check if it's time to generate this event
                 
-                # Create the event using the event format from the configuration
+                # Create the event using only the attributes from the configuration
                 event = {
-                    "timestamp": current_time.isoformat() + "Z",
-                    "severity_text": "INFO",  # Default severity text
-                    "severity_number": 9,      # Default severity number
-                    "attributes": {
-                        "event_type": event_type,
-                    },
-                    "body": f"{event_type} event generated"
+                    "attributes": {}
                 }
 
                 # Populate attributes based on the event format
@@ -56,7 +50,13 @@ class EventGenerator:
                             event["attributes"][attr] = random.randint(1, 1000)  # Example for integers
                         elif "string" in attr_type:
                             event["attributes"][attr] = f"example_{random.randint(1, 100)}"  # Example for strings
-                        # Add more types as needed based on your configuration
+
+                # Ensure all attributes are included based on the configuration
+                for attr in source['event_format']['attributes']:
+                    if attr not in event["attributes"]:
+                        # If an attribute is missing, populate it from allowed values if available
+                        if attr in source['allowed_values']:
+                            event["attributes"][attr] = random.choice(source['allowed_values'][attr])
 
                 self.event_batch.append(event)  # Add event to the batch
                 print(f"Sending event to Axiom: {json.dumps(event)}")  # Log to console

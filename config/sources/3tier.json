@@ -2,69 +2,62 @@
     "sources": {
       "web_application": {
         "event_format": {
-          "timestamp": "ISO 8601 format",
-          "severity_text": "string",
-          "severity_number": "integer",
           "attributes": {
-            "event_type": "string",
-            "user_id": "string",
-            "action": "string",
-            "page": "string",
-            "duration": "integer (in seconds)",
-            "response_code": "integer",
-            "response_time": "integer (in milliseconds)"
-          },
-          "body": "string"
+            "http.method": "string",
+            "http.target": "string",
+            "http.scheme": "string",
+            "http.status_code": "integer",
+            "http.route": "string",
+            "http.duration_ms": "integer",
+            "service.health.status": "string",
+            "service.health.dependencies": "array"
+          }
         },
         "allowed_values": {
-          "event_type": ["page_view", "button_click", "form_submission"],
-          "action": ["view", "click", "submit"],
-          "severity_text": ["DEBUG", "INFO", "WARN", "ERROR", "FATAL"],
-          "response_code": [200, 404, 500]
+          "http.method": ["GET", "POST", "PUT", "DELETE"],
+          "http.target": ["/api/health", "/api/products/recommendations", "/api/orders"],
+          "http.scheme": ["http", "https"],
+          "http.status_code": [200, 201, 400, 403, 404, 500],
+          "http.route": ["/api/health", "/api/products/recommendations", "/api/orders"],
+          "service.health.status": ["up", "down"],
+          "service.health.dependencies": ["database", "cache", "auth-service"]
         },
         "event_types": {
-          "page_view": {
+          "health_check": {
             "frequency": "every 5 minutes",
             "volume": 1000
           },
-          "button_click": {
+          "order_creation": {
             "frequency": "every 10 minutes",
             "volume": 500
-          },
-          "form_submission": {
-            "frequency": "every 30 minutes",
-            "volume": 200
           }
         }
       },
       "api_service": {
         "event_format": {
-          "timestamp": "ISO 8601 format",
-          "severity_text": "string",
-          "severity_number": "integer",
           "attributes": {
-            "event_type": "string",
-            "request_id": "string",
-            "endpoint": "string",
-            "response_time": "integer (in milliseconds)",
-            "http_method": "string",
-            "http_status_code": "integer",
-            "error_type": "string",
-            "error_message": "string"
-          },
-          "body": "string"
+            "http.method": "string",
+            "http.target": "string",
+            "http.scheme": "string",
+            "http.status_code": "integer",
+            "error.type": "string",
+            "error.message": "string"
+          }
         },
         "allowed_values": {
-          "event_type": ["api_call", "error"],
-          "http_method": ["GET", "POST", "PUT", "DELETE"],
-          "http_status_code": [200, 400, 404, 500]
+          "http.method": ["GET", "POST", "PUT", "DELETE"],
+          "http.target": ["/api/payments/process", "/api/users/preferences"],
+          "http.scheme": ["http", "https"],
+          "http.status_code": [200, 400, 404, 500],
+          "error.type": ["payment_processing_failed", "authorization_failed"],
+          "error.message": ["Third-party payment gateway timeout", "Token expired"]
         },
         "event_types": {
-          "fetch_product_details": {
+          "process_payment": {
             "frequency": "every 5 minutes",
             "volume": 800
           },
-          "submit_order": {
+          "fetch_user_data": {
             "frequency": "every 10 minutes",
             "volume": 300
           }
@@ -72,36 +65,41 @@
       },
       "database_service": {
         "event_format": {
-          "timestamp": "ISO 8601 format",
-          "severity_text": "string",
-          "severity_number": "integer",
           "attributes": {
-            "event_type": "string",
-            "db_operation": "string",
-            "db_statement_type": "string",
-            "db_name": "string",
-            "db_user": "string",
-            "db_connection_id": "string",
-            "db_execution_time_ms": "integer",
-            "db_rows_affected": "integer",
-            "db_error_code": "string",
-            "db_table": "string"
-          },
-          "body": "string"
+            "db.operation": "string",
+            "db.statement.type": "string",
+            "db.name": "string",
+            "db.user": "string",
+            "db.connection.id": "string",
+            "db.rows_affected": "integer",
+            "db.execution_time_ms": "integer",
+            "db.error.code": "string",
+            "db.transaction.id": "string",
+            "db.table": "string",
+            "db.lock.type": "string",
+            "db.postgresql.plan_type": "string",
+            "db.postgresql.checkpoint_type": "string"
+          }
         },
         "allowed_values": {
-          "event_type": ["query_execution", "transaction", "maintenance", "replication"],
-          "db_operation": ["QUERY", "TRANSACTION", "MAINTENANCE", "REPLICATION"],
-          "db_statement_type": ["SELECT", "INSERT", "UPDATE", "DELETE"],
-          "db_name": ["inventory_db", "user_db"],
-          "db_user": ["inventory_api_user", "admin_user"]
+          "db.operation": ["QUERY", "TRANSACTION", "MAINTENANCE", "REPLICATION"],
+          "db.statement.type": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+          "db.name": ["inventory_db", "user_db"],
+          "db.user": ["inventory_api_user", "admin_user"],
+          "db.connection.id": ["12345", "54321", "67890", "13579", "24680"],
+          "db.error.code": ["40P01", "23505"],
+          "db.transaction.id": ["xact_789012", "xact_123456"],
+          "db.table": ["product_stock", "orders"],
+          "db.lock.type": ["RowExclusiveLock", "RowShareLock"],
+          "db.postgresql.plan_type": ["index_scan", "sequential_scan"],
+          "db.postgresql.checkpoint_type": ["scheduled", "manual"]
         },
         "event_types": {
-          "retrieve_product_stock": {
+          "execute_query": {
             "frequency": "every 5 minutes",
             "volume": 800
           },
-          "update_order_status": {
+          "update_stock": {
             "frequency": "every 10 minutes",
             "volume": 300
           }
