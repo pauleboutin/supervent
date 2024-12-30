@@ -16,7 +16,7 @@ def load_config(file_path):
         return json.load(f)
 
 def merge_configs(base_config, overlay_config):
-    # Merge logic for health checks and traffic patterns
+    # Merge logic for configurations
     for key, value in overlay_config.items():
         if key in base_config:
             # Override existing values
@@ -26,16 +26,25 @@ def merge_configs(base_config, overlay_config):
             base_config[key] = value
     return base_config
 
-# Load the default configuration
-normal_traffic_config = load_config('config/scenarios/normal_traffic.json')
+def main():
+    # Load the main configuration and event frequencies
+    sources_config = load_config('config/sources/3tier.json')
+    event_frequencies = load_config('config/scenarios/event_frequencies.json')
+    normal_traffic_config = load_config('config/scenarios/normal_traffic.json')
+    
+    # Load the unified behavior configuration
+    unified_behavior_config = load_config('config/scenarios/unified_behavior_config.json')
 
-# Load overlay configurations specified by the user
-overlay_files = ['config/scenarios/database_problem.json', 'config/scenarios/surge_traffic.json']
-for overlay_file in overlay_files:
-    overlay_config = load_config(overlay_file)
-    normal_traffic_config = merge_configs(normal_traffic_config, overlay_config)
+    # Merge the normal traffic configuration with the unified behavior configuration
+    merged_config = merge_configs(normal_traffic_config, unified_behavior_config)
 
-# Proceed with event generation using the merged configuration
+    # Print the merged configuration for debugging
+    print("Merged Configuration:")
+    print(json.dumps(merged_config, indent=4))  # Pretty print the merged config
+
+    # Proceed with event generation using the merged configuration
+    generator = EventGenerator(sources_config, event_frequencies, merged_config)
+    generator.generate_events()
 
 class EventGenerator:
     def __init__(self, sources_config, event_frequencies, scenario_config):
@@ -59,13 +68,11 @@ class EventGenerator:
 
     def generate_source_events(self, source_name, source, current_time):
         for event_type, details in source['event_types'].items():
-            frequency_str = self.get_event_frequency(source_name, event_type)
-            frequency_minutes = self.parse_frequency(frequency_str)
-            if frequency_minutes and (current_time.minute % frequency_minutes) == 0:  # Check if it's time to generate this event
+            frequency = self.get_event_frequency(source_name, event_type)
+            if frequency and (current_time.minute % frequency) == 0:  # Check if it's time to generate this event
                 
                 # Create the event using only the attributes from the configuration
                 event = {
-                    "_time": current_time.isoformat() + "Z",  # Add the artificial timestamp
                     "attributes": {}
                 }
 
@@ -124,9 +131,13 @@ class EventGenerator:
         if source_name in self.event_frequencies['normal_traffic']:
             if event_type in self.event_frequencies['normal_traffic'][source_name]:
                 frequency_str = self.event_frequencies['normal_traffic'][source_name][event_type]['frequency']
-                print(f"Retrieved frequency for {event_type} in {source_name}: {frequency_str}")  # Debugging statement
-                return frequency_str
-        print(f"No frequency found for {event_type} in {source_name}")  # Debugging statement
+                # Parse the frequency string to get the integer value
+                if "minute" in frequency_str:
+                    return int(frequency_str.split()[1])  # Extract the number of minutes
+                elif "second" in frequency_str:
+                    return int(frequency_str.split()[1]) / 60  # Convert seconds to minutes
+                elif "hour" in frequency_str:
+                    return int(frequency_str.split()[1]) * 60  # Convert hours to minutes
         return None
 
     def send_events_to_axiom(self, events):
@@ -141,28 +152,11 @@ class EventGenerator:
             print(f"Failed to send events to Axiom: {response.status_code} - {response.text}")
         self.event_batch.clear()  # Clear the batch after sending
 
-    def parse_frequency(self, frequency_str):
-        if frequency_str is None:
-            print("Frequency string is None")  # Debugging statement
-            return None
-        # Parse the frequency string to get the integer value in minutes
-        if "minute" in frequency_str:
-            return int(frequency_str.split()[1])  # Extract the number of minutes
-        elif "second" in frequency_str:
-            return int(frequency_str.split()[1]) / 60  # Convert seconds to minutes
-        elif "hour" in frequency_str:
-            return int(frequency_str.split()[1]) * 60  # Convert hours to minutes
-        return None
-
-def main():
-    # Load the main configuration and event frequencies
-    sources_config = load_config('config/sources/3tier.json')
-    event_frequencies = load_config('config/scenarios/event_frequencies.json')
-    scenario_config = load_config('config/scenarios/normal_traffic.json')
-
-    # Ensure that sources_config is defined before this line
-    generator = EventGenerator(sources_config, event_frequencies, scenario_config)
-    generator.generate_events()
+    def simulate_error_rate(self, service, error_rate):
+        # Logic to simulate error rates for health checks
+        if error_rate == "high":
+            # Implement logic to increase the likelihood of errors during health checks
+            pass  # Replace with actual implementation
 
 if __name__ == "__main__":
     main()
