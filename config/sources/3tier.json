@@ -24,12 +24,16 @@
         },
         "event_types": {
           "health_check": {
-            "frequency": "every 5 minutes",
-            "volume": 1000
+            "description": "Check the health of the service",
+            "followed_by": ["process_payment", "fetch_user_data"]
           },
           "order_creation": {
-            "frequency": "every 10 minutes",
-            "volume": 500
+            "description": "Create a new order",
+            "followed_by": ["execute_query"]
+          },
+          "fetch_user_data": {
+            "description": "Fetch user data",
+            "followed_by": ["health_check"]
           }
         }
       },
@@ -54,12 +58,20 @@
         },
         "event_types": {
           "process_payment": {
-            "frequency": "every 5 minutes",
-            "volume": 800
+            "description": "Process a payment",
+            "followed_by": ["execute_query"]
           },
           "fetch_user_data": {
-            "frequency": "every 10 minutes",
-            "volume": 300
+            "description": "Fetch user data",
+            "followed_by": ["health_check"]
+          },
+          "execute_query": {
+            "description": "Execute a database query",
+            "followed_by": ["process_payment"]
+          },
+          "health_check": {
+            "description": "Check the health of the API service",
+            "followed_by": []
           }
         }
       },
@@ -96,12 +108,20 @@
         },
         "event_types": {
           "execute_query": {
-            "frequency": "every 5 minutes",
-            "volume": 800
+            "description": "Execute a database query",
+            "followed_by": ["process_payment"]
           },
           "update_stock": {
-            "frequency": "every 10 minutes",
-            "volume": 300
+            "description": "Update stock information",
+            "followed_by": ["health_check"]
+          },
+          "health_check": {
+            "description": "Check the health of the database service",
+            "followed_by": []
+          },
+          "process_payment": {
+            "description": "Process a payment related to database operations",
+            "followed_by": []
           }
         }
       }

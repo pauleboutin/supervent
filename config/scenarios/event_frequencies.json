@@ -1,0 +1,22 @@
+{
+  "normal_traffic": {
+    "web_application": {
+      "health_check": {
+        "frequency": "every 5 minutes",
+        "followed_by": {}
+      }
+    },
+    "api_service": {
+      "health_check": {
+        "frequency": "every 5 minutes",
+        "followed_by": {}
+      }
+    },
+    "database_service": {
+      "health_check": {
+        "frequency": "every 5 minutes",
+        "followed_by": {}
+      }
+    }
+  }
+}

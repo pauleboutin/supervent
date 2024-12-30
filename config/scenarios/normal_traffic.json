@@ -1,90 +1,73 @@
 {
   "scenario": {
     "name": "Normal Traffic Week",
-    "description": "Simulates typical traffic over a week in October with realistic event generation.",
+    "description": "Simulates typical traffic over a week in December with realistic event generation.",
     "time_period": {
-      "start_time": "2023-10-01T00:00:00Z",
-      "end_time": "2023-10-07T23:59:59Z"
+      "start_time": "2024-12-09T08:00:00Z",
+      "end_time": "2024-12-15T09:00:00Z"
     },
-    "event_generators": {
-      "web_application": {
-        "event_types": {
-          "page_view": {
-            "frequency": "every 5 minutes",
-            "volume": 1000
-          },
-          "button_click": {
-            "frequency": "every 10 minutes",
-            "volume": 500
-          },
-          "form_submission": {
-            "frequency": "every 30 minutes",
-            "volume": 200
-          }
+    "traffic_patterns": {
+      "daily": {
+        "Monday": {
+          "8-10": 1200,
+          "10-12": 800,
+          "12-14": 600,
+          "14-16": 900,
+          "16-18": 1500,
+          "18-20": 700,
+          "20-22": 300
         },
-        "dependencies": {
-          "page_view": {
-            "triggers": [
-              {
-                "source": "api_service",
-                "event": "fetch_product_details",
-                "volume": 800
-              }
-            ]
-          },
-          "button_click": {
-            "triggers": [
-              {
-                "source": "api_service",
-                "event": "submit_order",
-                "volume": 300
-              }
-            ]
-          }
-        }
-      },
-      "api_service": {
-        "event_types": {
-          "fetch_product_details": {
-            "frequency": "every 5 minutes",
-            "volume": 800
-          },
-          "submit_order": {
-            "frequency": "every 10 minutes",
-            "volume": 300
-          }
+        "Tuesday": {
+          "8-10": 1200,
+          "10-12": 800,
+          "12-14": 600,
+          "14-16": 900,
+          "16-18": 1500,
+          "18-20": 700,
+          "20-22": 300
         },
-        "dependencies": {
-          "fetch_product_details": {
-            "triggers": [
-              {
-                "source": "database_service",
-                "event": "retrieve_product_stock",
-                "volume": 800
-              }
-            ]
-          },
-          "submit_order": {
-            "triggers": [
-              {
-                "source": "database_service",
-                "event": "update_order_status",
-                "volume": 300
-              }
-            ]
-          }
-        }
-      },
-      "database_service": {
-        "event_types": {
-          "retrieve_product_stock": {
-            "frequency": "every 5 minutes",
-            "volume": 800
-          },
-          "update_order_status": {
-            "frequency": "every 10 minutes",
-            "volume": 300
-          }
+        "Wednesday": {
+          "8-10": 1300,
+          "10-12": 900,
+          "12-14": 600,
+          "14-16": 1000,
+          "16-18": 1600,
+          "18-20": 800,
+          "20-22": 400
+        },
+        "Thursday": {
+          "8-10": 1400,
+          "10-12": 1000,
+          "12-14": 700,
+          "14-16": 1100,
+          "16-18": 1700,
+          "18-20": 800,
+          "20-22": 400
+        },
+        "Friday": {
+          "8-10": 1500,
+          "10-12": 1100,
+          "12-14": 800,
+          "14-16": 1200,
+          "16-18": 1800,
+          "18-20": 900,
+          "20-22": 500
+        },
+        "Saturday": {
+          "9-11": 600,
+          "11-13": 800,
+          "13-15": 700,
+          "15-17": 500,
+          "17-19": 300,
+          "19-21": 200
+        },
+        "Sunday": {
+          "9-11": 700,
+          "11-13": 900,
+          "13-15": 800,
+          "15-17": 600,
+          "17-19": 400,
+          "19-21": 300
         }
       }
     }
