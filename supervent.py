@@ -65,6 +65,7 @@ class EventGenerator:
         print(f"Generating source events for: {source}")
         parameters = event['volume']
         event_types = event['event_types']
+        source_description = event['description']
         print(f"Parameters for {source}: {parameters}")
         for volume in parameters:
             count = volume['count']
@@ -82,14 +83,14 @@ class EventGenerator:
                     start_time = datetime.fromisoformat(time_period.replace('Z', '+00:00'))
                     end_time = start_time  # Same for both if it's a single timestamp
                     print(f"Parsed start_time: {start_time}, end_time: {end_time}")  # Debug statement
-                    self.create_events(count, distribution, {'start': start_time, 'end': end_time}, source, event_types)
+                    self.create_events(count, distribution, {'start': start_time, 'end': end_time}, source_description, event_types, source)
                 except Exception as e:
                     print(f"Error parsing time period: {e}")  # Debug statement for error handling
             else:
                 print(f"Time period is not a string, it is: {type(time_period)}")  # Debug statement
-                self.create_events(count, distribution, time_period, source, event_types)
+                self.create_events(count, distribution, time_period, source_description, event_types, source)
 
-    def create_events(self, count, distribution, time_period, source, event_types):
+    def create_events(self, count, distribution, time_period, source_description, event_types, source):
         # Create a list to hold events before sending to Axiom
         events = []  
         start_time, end_time = self.parse_time_period(time_period)  # Parse the time period
@@ -101,11 +102,11 @@ class EventGenerator:
         for _ in range(count):
             # Generate the event based on the specified distribution
             if distribution == 'normal':
-                # Generate a random timestamp based on a normal distribution
-                random_timestamp = self.generate_normal_time(mean_time, std_dev)
+                # Generate a fake timestamp based on a normal distribution
+                fake_timestamp = self.generate_normal_time(mean_time, std_dev)
             elif distribution == 'random':
-                # Generate a random timestamp uniformly between start_time and end_time
-                random_timestamp = self.random_time_between(start_time, end_time)
+                # Generate a fake timestamp uniformly between start_time and end_time
+                fake_timestamp = self.random_time_between(start_time, end_time)
             else:
                 raise ValueError(f"Unsupported distribution type: {distribution}")
 
@@ -113,13 +114,27 @@ class EventGenerator:
             event_type = random.choice(event_types)
             message = event_type['format']
             event_type_name = event_type['type']
+            details = event_type.get('details', {})
+
+            # Format the timestamp based on the source type
+            if source == "web_server":
+                formatted_timestamp = fake_timestamp.strftime("%d/%b/%Y:%H:%M:%S +0000")
+            else:
+                formatted_timestamp = fake_timestamp.isoformat() + "Z"
+
+            # Update the details with the formatted timestamp
+            details['timestamp'] = formatted_timestamp
+
+            # Format the message with the details
+            formatted_message = message.format(**details)
 
             # Generate the event
             event = {
-                'source': source,  # Use the source parameter
-                '_time': random_timestamp,  # Insert the generated timestamp
-                'message': message,  # Include the chosen event type format
-                'event_type': event_type_name  # Include the event type name
+                'source': source_description,  # Use the source description
+                '_time': fake_timestamp,  # Insert the generated timestamp
+                'message': formatted_message,  # Include the formatted message
+                'event_type': event_type_name,  # Include the event type name
+                'details': details  # Include the details
             }
             events.append(event)
 
@@ -148,7 +163,8 @@ class EventGenerator:
                 dependent_event = {
                     'source': action['source'],
                     '_time': event['_time'],
-                    'message': action['event_type']
+                    'message': action['event_type'],
+                    'details': event.get('details', {})
                 }
                 print(f"Generating dependent event: {dependent_event}")  # Debug statement
                 events.append(dependent_event)
@@ -174,8 +190,8 @@ class EventGenerator:
         # mean is a datetime object, std_dev is in seconds
         mean_timestamp = mean.timestamp()  # Convert to timestamp
         random_offset = np.random.normal(0, std_dev)  # Generate a random offset
-        random_timestamp = mean_timestamp + random_offset  # Add the offset to the mean timestamp
-        return datetime.fromtimestamp(random_timestamp)  # Convert back to datetime
+        fake_timestamp = mean_timestamp + random_offset  # Add the offset to the mean timestamp
+        return datetime.fromtimestamp(fake_timestamp)  # Convert back to datetime
 
     def store_events(self, events):
         for event in events:
@@ -228,10 +244,10 @@ class EventGenerator:
         random_seconds = int(np.random.normal(0, std_dev.total_seconds()))
         
         # Create a new datetime by adding the random seconds as a timedelta
-        random_time = mean + timedelta(seconds=random_seconds)
+        fake_timestamp = mean + timedelta(seconds=random_seconds)
 
         # Ensure the generated time is within the start and end bounds
-        return random_time
+        return fake_timestamp
 
     def random_time_between(self, start, end):
         """Generate a random datetime between two datetime objects."""

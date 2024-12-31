@@ -10,7 +10,7 @@ end_time: "2024-12-15T23:59:59Z"    # End time for the dataset
 
 sources:  
   web_server:
-    description: "Emulating Apache HTTP Server"
+    description: "Apache HTTP Server"
     volume:
       - time_period:
           start: "2024-12-09T08:00:00Z"
@@ -26,20 +26,98 @@ sources:
         details: "Web server response event"
     event_types:
       - type: "request"
-        format: "GET /index.html HTTP/1.1"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "203.0.113.42",
+          "user": "frank",
+          "timestamp": "30/Dec/2024:09:23:51 +0000",
+          "method": "GET",
+          "path": "/api/v2/users",
+          "protocol": "HTTP/2.0",
+          "status": 200,
+          "bytes": 2326,
+          "referer": "https://app.example.com/dashboard",
+          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "response_time": 182
+        }
       - type: "response"
-        format: "HTTP/1.1 200 OK"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "192.0.2.88",
+          "user": "alice",
+          "timestamp": "30/Dec/2024:09:23:52 +0000",
+          "method": "GET",
+          "path": "/assets/main.js",
+          "protocol": "HTTP/2.0",
+          "status": 200,
+          "bytes": 15409,
+          "referer": "https://example.com/index.html",
+          "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
+          "response_time": 143
+        }
       - type: "error"
-        format: "HTTP/1.1 404 Not Found"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "198.51.100.77",
+          "user": "-",
+          "timestamp": "30/Dec/2024:09:23:52 +0000",
+          "method": "PUT",
+          "path": "/api/v2/documents/1234",
+          "protocol": "HTTP/2.0",
+          "status": 403,
+          "bytes": 983,
+          "referer": "-",
+          "user_agent": "curl/8.4.0",
+          "response_time": 167
+        }
       - type: "redirect"
-        format: "HTTP/1.1 301 Moved Permanently"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "203.0.113.44",
+          "user": "bob",
+          "timestamp": "30/Dec/2024:09:23:53 +0000",
+          "method": "GET",
+          "path": "/health",
+          "protocol": "HTTP/1.1",
+          "status": 200,
+          "bytes": 43,
+          "referer": "-",
+          "user_agent": "kube-probe/1.28",
+          "response_time": 12
+        }
       - type: "request"
-        format: "POST /login HTTP/1.1"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "192.0.2.100",
+          "user": "-",
+          "timestamp": "30/Dec/2024:09:23:53 +0000",
+          "method": "POST",
+          "path": "/api/v2/events",
+          "protocol": "HTTP/2.0",
+          "status": 429,
+          "bytes": 782,
+          "referer": "-",
+          "user_agent": "python-requests/2.31.0",
+          "response_time": 156
+        }
       - type: "response"
-        format: "HTTP/1.1 500 Internal Server Error"
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
+        details: {
+          "client_ip": "198.51.100.80",
+          "user": "carol",
+          "timestamp": "30/Dec/2024:09:23:54 +0000",
+          "method": "GET",
+          "path": "/static/css/main.min.css",
+          "protocol": "HTTP/2.0",
+          "status": 304,
+          "bytes": 0,
+          "referer": "https://example.com/shop",
+          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "response_time": 45
+        }
 
   app_server:
-    description: "Emulating Express.js API Server"
+    description: "Express.js API Server"
     volume:
       - time_period:
           start: "2024-12-09T08:00:00Z"
@@ -54,25 +132,164 @@ sources:
         distribution: random
         details: "API response event"
     event_types:
-      - type: "api_request"
-        format: "POST /api/v1/resource"
-      - type: "api_response"
-        format: "200 OK"
-      - type: "api_request"
-        format: "GET /api/v1/resource"
-      - type: "api_response"
-        format: "404 Not Found"
-      - type: "api_request"
-        format: "PUT /api/v1/resource"
-      - type: "api_response"
-        format: "500 Internal Server Error"
-      - type: "api_request"
-        format: "DELETE /api/v1/resource"
-      - type: "api_response"
-        format: "401 Unauthorized"
+      - type: "info"
+        format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Processing {method} {path} - client_ip: {client_ip}, auth: "{auth}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.182Z",
+          "req_id": "7f8e9a2b",
+          "method": "GET",
+          "path": "/api/v2/users",
+          "client_ip": "203.0.113.42",
+          "auth": "frank"
+        }
+      - type: "debug"
+        format: '[{timestamp}] DEBUG [express:db] [req-id: {req_id}] MongoDB query executed - collection: {collection}, duration: {duration}ms'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.198Z",
+          "req_id": "7f8e9a2b",
+          "collection": "users",
+          "duration": 16
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Request completed - status: {status}, duration: {duration}ms'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.215Z",
+          "req_id": "7f8e9a2b",
+          "status": 200,
+          "duration": 33
+        }
+      - type: "warn"
+        format: '[{timestamp}] WARN [express:auth] [req-id: {req_id}] Failed OAuth validation - token expired - client_ip: {client_ip}'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.305Z",
+          "req_id": "3d4f5g6h",
+          "client_ip": "10.0.47.15"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Request rejected - status: {status}, duration: {duration}ms'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.308Z",
+          "req_id": "3d4f5g6h",
+          "status": 401,
+          "duration": 3
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Processing {method} {path} - client_ip: {client_ip}'
+        details: {
+          "timestamp": "2024-12-30T09:23:52.167Z",
+          "req_id": "9k8l7m6n",
+          "method": "PUT",
+          "path": "/api/v2/documents/1234",
+          "client_ip": "198.51.100.77"
+        }
+      - type: "error"
+        format: '[{timestamp}] ERROR [express:db] [req-id: {req_id}] MongoDB write error - collection: {collection}, error: "{error}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:52.184Z",
+          "req_id": "9k8l7m6n",
+          "collection": "documents",
+          "error": "insufficient_permissions"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:cache] [req-id: {req_id}] Redis cache hit - key: "{key}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:53.201Z",
+          "req_id": "2h3j4k5l",
+          "key": "user:bob:preferences"
+        }
+      - type: "warn"
+        format: '[{timestamp}] WARN [express:rate-limit] [req-id: {req_id}] Rate limit exceeded - endpoint: {endpoint}, client_ip: {client_ip}'
+        details: {
+          "timestamp": "2024-12-30T09:23:53.445Z",
+          "req_id": "8m9n0p1q",
+          "endpoint": "/api/v2/events",
+          "client_ip": "192.0.2.100"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Processing GraphQL query - operation: "{operation}", client_ip: {client_ip}'
+        details: {
+          "timestamp": "2024-12-30T09:23:54.112Z",
+          "req_id": "5r6s7t8u",
+          "operation": "getUserProfile",
+          "client_ip": "192.0.2.105"
+        }
+      - type: "debug"
+        format: '[{timestamp}] DEBUG [express:db] [req-id: {req_id}] Postgres query completed - duration: {duration}ms, rows: {rows}'
+        details: {
+          "timestamp": "2024-12-30T09:23:54.167Z",
+          "req_id": "5r6s7t8u",
+          "duration": 55,
+          "rows": 12
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:metrics] [req-id: {req_id}] Prometheus metrics requested - scope: "{scope}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:55.223Z",
+          "req_id": "1w2x3y4z",
+          "scope": "api_server"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:webhook] [req-id: {req_id}] Processing Stripe webhook - event: "{event}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:56.445Z",
+          "req_id": "7a8b9c0d",
+          "event": "payment.succeeded"
+        }
+      - type: "debug"
+        format: '[{timestamp}] DEBUG [express:queue] [req-id: {req_id}] Message published to RabbitMQ - queue: "{queue}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:56.512Z",
+          "req_id": "7a8b9c0d",
+          "queue": "payment_processing"
+        }
+      - type: "error"
+        format: '[{timestamp}] ERROR [express:auth] [req-id: {req_id}] Invalid API key - client_ip: {client_ip}, scope: "{scope}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:57.167Z",
+          "req_id": "4e5f6g7h",
+          "client_ip": "10.0.47.25",
+          "scope": "config_read"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:cache] [req-id: {req_id}] Redis cache invalidated - pattern: "{pattern}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:57.892Z",
+          "req_id": "9j0k1l2m",
+          "pattern": "user:456:*"
+        }
+      - type: "warn"
+        format: '[{timestamp}] WARN [express:validation] [req-id: {req_id}] Request payload validation failed - endpoint: {endpoint}'
+        details: {
+          "timestamp": "2024-12-30T09:23:58.445Z",
+          "req_id": "5n6p7q8r",
+          "endpoint": "/api/v2/users/456"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:queue] [req-id: {req_id}] Consuming message from RabbitMQ - queue: "{queue}"'
+        details: {
+          "timestamp": "2024-12-30T09:23:59.167Z",
+          "req_id": "2s3t4u5v",
+          "queue": "log_processing"
+        }
+      - type: "error"
+        format: '[{timestamp}] ERROR [express:db] [req-id: {req_id}] MongoDB timeout - operation: {operation}, collection: {collection}'
+        details: {
+          "timestamp": "2024-12-30T09:23:59.334Z",
+          "req_id": "8v9w0x1y",
+          "operation": "insert",
+          "collection": "logs"
+        }
+      - type: "info"
+        format: '[{timestamp}] INFO [express:metrics] [req-id: {req_id}] Datadog metrics pushed - count: {count}, duration: {duration}ms'
+        details: {
+          "timestamp": "2024-12-30T09:24:00.223Z",
+          "req_id": "3z4a5b6c",
+          "count": 47,
+          "duration": 56
+        }
 
   database_server:
-    description: "Emulating MySQL Database Server"
+    description: "MySQL Database Server"
     volume:
       - time_period:
           start: "2024-12-09T08:00:00Z"
@@ -87,22 +304,158 @@ sources:
         distribution: random
         details: "Database update event"
     event_types:
-      - type: "query"
-        format: "SELECT * FROM users WHERE id = ?"
-      - type: "update"
-        format: "UPDATE users SET name = ? WHERE id = ?"
-      - type: "insert"
-        format: "INSERT INTO users (name, email) VALUES (?, ?)"
-      - type: "delete"
-        format: "DELETE FROM users WHERE id = ?"
-      - type: "query"
-        format: "SELECT * FROM orders WHERE user_id = ?"
-      - type: "update"
-        format: "UPDATE orders SET status = ? WHERE id = ?"
-      - type: "query"
-        format: "SELECT * FROM products WHERE category = ?"
-      - type: "insert"
-        format: "INSERT INTO products (name, price) VALUES (?, ?)"
+      - type: "note"
+        format: '{timestamp} [Note] [Server] MySQL Version: 8.0.35-commercial - client connection from {client_ip}:{port} via TCP/IP'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.167Z",
+          "client_ip": "10.0.47.100",
+          "port": 43892
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.182Z",
+          "duration": 127,
+          "query": "SELECT u.id, u.email, u.role FROM users u WHERE u.status = 'active' LIMIT 100",
+          "txid": "4f5d8e9a"
+        }
+      - type: "warning"
+        format: '{timestamp} [Warning] [Slow query] Query took {duration}ms: {query}'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.198Z",
+          "duration": 234,
+          "query": "SELECT COUNT(*) FROM user_sessions WHERE last_active > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [InnoDB] New connection thread created: thread_id={thread_id}'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.305Z",
+          "thread_id": 47891
+        }
+      - type: "error"
+        format: '{timestamp} [Error] [InnoDB] Lock wait timeout exceeded; try restarting transaction [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:51.445Z",
+          "txid": "3d4f5g6h"
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:52.167Z",
+          "duration": 89,
+          "query": "INSERT INTO documents (id, user_id, content, created_at) VALUES (1234, 456, 'content', NOW())",
+          "txid": "9k8l7m6n"
+        }
+      - type: "note"
+        format: '{timestamp} [Note] [Replication] Slave I/O thread: connected to master {user}@{host}, replication started in log {log_file} at position {position}'
+        details: {
+          "timestamp": "2024-12-30T09:23:52.223Z",
+          "user": "repl",
+          "host": "db-master:3306",
+          "log_file": "mysql-bin.000983",
+          "position": 156
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:53.112Z",
+          "duration": 45,
+          "query": "UPDATE user_preferences SET theme='dark' WHERE user_id=789",
+          "txid": "2h3j4k5l"
+        }
+      - type: "warning"
+        format: '{timestamp} [Warning] [Buffer] InnoDB buffer pool is > 80% full. Current: {current}GB of {total}GB'
+        details: {
+          "timestamp": "2024-12-30T09:23:53.334Z",
+          "current": 12.8,
+          "total": 16
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:54.167Z",
+          "duration": 167,
+          "query": "SELECT * FROM event_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND type='error'",
+          "txid": "8m9n0p1q"
+        }
+      - type: "error"
+        format: '{timestamp} [Error] [Connection] Too many connections (max_connections={max_connections})'
+        details: {
+          "timestamp": "2024-12-30T09:23:54.445Z",
+          "max_connections": 1000
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:55.167Z",
+          "duration": 78,
+          "query": "BEGIN; INSERT INTO payment_transactions VALUES (/* ... */); COMMIT",
+          "txid": "5r6s7t8u"
+        }
+      - type: "warning"
+        format: '{timestamp} [Warning] [Query] Aborted connection {thread_id} to db: {db} user: {user} host: {host} (Got timeout reading communication packets)'
+        details: {
+          "timestamp": "2024-12-30T09:23:56.223Z",
+          "thread_id": 47891,
+          "db": "api_db",
+          "user": "app_user",
+          "host": "10.0.47.100"
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [InnoDB] Completed index build for table {db}.{table}, index {index} in {duration} seconds'
+        details: {
+          "timestamp": "2024-12-30T09:23:57.112Z",
+          "db": "api_db",
+          "table": "user_sessions",
+          "index": "idx_last_active",
+          "duration": 2.34
+        }
+      - type: "note"
+        format: '{timestamp} [Note] [Server] Shutdown initiated by user {user} from host {host}'
+        details: {
+          "timestamp": "2024-12-30T09:23:57.445Z",
+          "user": "admin",
+          "host": "10.0.47.200"
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:58.167Z",
+          "duration": 234,
+          "query": "DELETE FROM expired_tokens WHERE expires_at < NOW() - INTERVAL 30 DAY",
+          "txid": "4e5f6g7h"
+        }
+      - type: "warning"
+        format: '{timestamp} [Warning] [InnoDB] Table {db}.{table} size exceeds configured max_table_size of {max_size}GB'
+        details: {
+          "timestamp": "2024-12-30T09:23:59.223Z",
+          "db": "api_db",
+          "table": "event_logs",
+          "max_size": 2
+        }
+      - type: "info"
+        format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:23:59.445Z",
+          "duration": 145,
+          "query": "CREATE INDEX idx_user_email ON users(email) ALGORITHM=INPLACE",
+          "txid": "9j0k1l2m"
+        }
+      - type: "note"
+        format: '{timestamp} [Note] [Replication] Slave SQL thread initialized, starting replication in log {log_file} at position {position}'
+        details: {
+          "timestamp": "2024-12-30T09:24:00.167Z",
+          "log_file": "mysql-bin.000983",
+          "position": 156
+        }
+      - type: "error"
+        format: '{timestamp} [Error] [InnoDB] Foreign key constraint fails for table {db}.{table} [txid: {txid}]'
+        details: {
+          "timestamp": "2024-12-30T09:24:00.334Z",
+          "db": "api_db",
+          "table": "user_documents",
+          "txid": "3z4a5b6c"
+        }
 
 dependencies:
   - trigger: 
@@ -110,34 +463,34 @@ dependencies:
       event_type: "request"
     action:
       source: "app_server"
-      event_type: "api_request"
+      event_type: "info"
   - trigger: 
       source: "app_server"
-      event_type: "api_request"
+      event_type: "info"
     action:
       source: "database_server"
-      event_type: "query"
+      event_type: "info"
   - trigger: 
       source: "database_server"
-      event_type: "query"
+      event_type: "info"
     action:
       source: "app_server"
-      event_type: "api_response"
+      event_type: "info"
   - trigger: 
       source: "app_server"
-      event_type: "api_response"
+      event_type: "info"
     action:
       source: "web_server"
       event_type: "response"
   - trigger: 
       source: "database_server"
-      event_type: "update"
+      event_type: "info"
     action:
       source: "app_server"
-      event_type: "api_response"
+      event_type: "info"
   - trigger: 
       source: "app_server"
-      event_type: "api_response"
+      event_type: "info"
     action:
       source: "web_server"
       event_type: "response"
@@ -147,25 +500,65 @@ dependencies:
       event_type: "error"
     action:
       source: "app_server"
-      event_type: "api_response"
+      event_type: "error"
   - trigger: 
       source: "app_server"
-      event_type: "api_response"
+      event_type: "error"
       message: "500 Internal Server Error"
     action:
       source: "web_server"
       event_type: "error"
   - trigger: 
       source: "app_server"
-      event_type: "api_response"
+      event_type: "error"
       message: "404 Not Found"
     action:
       source: "web_server"
       event_type: "error"
   - trigger: 
       source: "app_server"
-      event_type: "api_response"
+      event_type: "error"
       message: "401 Unauthorized"
     action:
       source: "web_server"
       event_type: "error"
+  - trigger: 
+      source: "database_server"
+      event_type: "warning"
+    action:
+      source: "app_server"
+      event_type: "warn"
+  - trigger: 
+      source: "app_server"
+      event_type: "warn"
+      message: "Rate limit exceeded"
+    action:
+      source: "web_server"
+      event_type: "error"
+  - trigger: 
+      source: "database_server"
+      event_type: "note"
+    action:
+      source: "app_server"
+      event_type: "info"
+  - trigger: 
+      source: "app_server"
+      event_type: "info"
+      message: "Processing Stripe webhook"
+    action:
+      source: "database_server"
+      event_type: "info"
+  - trigger: 
+      source: "database_server"
+      event_type: "info"
+      message: "Completed index build"
+    action:
+      source: "app_server"
+      event_type: "info"
+  - trigger: 
+      source: "app_server"
+      event_type: "info"
+      message: "Request completed"
+    action:
+      source: "web_server"
+      event_type: "response"
