@@ -45,6 +45,7 @@ class EventGenerator:
         self.event_frequencies = event_frequencies
         self.config = config
         self.dependencies = config.get('dependencies', [])
+        self.processed_events = set()  # Track processed events to prevent loops
 
         # Set up signal handling
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -68,7 +69,7 @@ class EventGenerator:
         source_description = event['description']
         print(f"Parameters for {source}: {parameters}")
         for volume in parameters:
-            count = volume['count']
+            count = volume.get('count', 0)
             distribution = volume['distribution']
             time_period = volume['time_period']
             print(f"Generating {count} events with {distribution} distribution for time period: {time_period}")
@@ -130,7 +131,7 @@ class EventGenerator:
 
             # Generate the event
             event = {
-                'source': source_description,  # Use the source description
+                'source': source,  # Use the original source name
                 '_time': fake_timestamp,  # Insert the generated timestamp
                 'message': formatted_message,  # Include the formatted message
                 'event_type': event_type_name,  # Include the event type name
@@ -138,7 +139,7 @@ class EventGenerator:
             }
             events.append(event)
 
-            # Chain events based on dependencies
+            # Recursively check for dependencies
             self.chain_events(event, events)
 
             # Send events in batches of 200
@@ -151,23 +152,49 @@ class EventGenerator:
 
     def chain_events(self, event, events):
         """Chain events based on the dependencies specified in the configuration."""
+        event_key = (event['source'], event['_time'], event['event_type'])
+        if event_key in self.processed_events:
+            return  # Skip already processed events to prevent loops
+
+        self.processed_events.add(event_key)  # Mark the event as processed
+
         print(f"Checking dependencies for event: {event}")  # Debug statement
         for dependency in self.dependencies:
             trigger = dependency['trigger']
             action = dependency['action']
             print(f"Checking dependency: {dependency}")  # Debug statement
+            print(f"Comparing event source: {event['source']} with trigger source: {trigger['source']}")  # Debug statement
+            print(f"Comparing event type: {event['event_type']} with trigger type: {trigger['event_type']}")  # Debug statement
             if event['source'] == trigger['source'] and event['event_type'] == trigger['event_type']:
-                if 'message' in trigger and event['message'] != trigger['message']:
-                    continue
+                print(f"Dependent event found for trigger: {trigger}")  # Debug statement
+
+                if 'message' in trigger:
+                    print(f"Comparing event message: {event['message']} with trigger message: {trigger['message']}")  # Debug statement
+                    if event['message'] != trigger['message']:
+                        print(f"Message does not match for trigger: {trigger}")  # Debug statement
+                        continue
                 # Create the dependent event
-                dependent_event = {
-                    'source': action['source'],
-                    '_time': event['_time'],
-                    'message': action['event_type'],
-                    'details': event.get('details', {})
-                }
+                dependent_event = self.create_event(action, event)
                 print(f"Generating dependent event: {dependent_event}")  # Debug statement
                 events.append(dependent_event)
+                print(f"Dependent event appended: {dependent_event}")  # Debug statement
+
+                # Recursively check for dependencies of the dependent event
+                self.chain_events(dependent_event, events)
+            else:
+                print(f"No match for dependency: {dependency}")  # Debug statement
+                print(f"Event source: {event['source']} != Trigger source: {trigger['source']} or Event type: {event['event_type']} != Trigger type: {trigger['event_type']}")  # Debug statement
+
+    def create_event(self, action, event):
+        """Create a dependent event based on the action and the original event."""
+        dependent_event = {
+            'source': action['source'],
+            '_time': event['_time'],
+            'message': action['event_type'],
+            'event_type': action['event_type'],  # Ensure the event_type field is included
+            'details': event.get('details', {}).copy()  # Copy details to avoid modifying the original event
+        }
+        return dependent_event
 
     def parse_time_period(self, time_period):
         print(f"Received time period for parsing: {time_period}")  # Debug statement

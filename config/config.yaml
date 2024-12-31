@@ -122,13 +122,11 @@ sources:
       - time_period:
           start: "2024-12-09T08:00:00Z"
           end: "2024-12-09T10:00:00Z"
-        count: 1000
         distribution: normal
         details: "API request event"
       - time_period:
           start: "2024-12-09T10:00:00Z"
           end: "2024-12-09T12:00:00Z"
-        count: 600
         distribution: random
         details: "API response event"
     event_types:
@@ -294,13 +292,11 @@ sources:
       - time_period:
           start: "2024-12-09T08:00:00Z"
           end: "2024-12-09T10:00:00Z"
-        count: 500
         distribution: normal
         details: "Database query event"
       - time_period:
           start: "2024-12-09T10:00:00Z"
           end: "2024-12-09T12:00:00Z"
-        count: 300
         distribution: random
         details: "Database update event"
     event_types:
