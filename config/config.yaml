@@ -22,6 +22,7 @@ sources:
         details: "Web server events"
     event_types:
       - type: "request"
+        create_from_scratch: true
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "203.0.113.42",
@@ -37,6 +38,7 @@ sources:
           "response_time": 182
         }
       - type: "response"
+        create_from_scratch: false
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "192.0.2.88",
@@ -52,6 +54,7 @@ sources:
           "response_time": 143
         }
       - type: "error"
+        create_from_scratch: false
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "198.51.100.77",
@@ -67,6 +70,7 @@ sources:
           "response_time": 167
         }
       - type: "redirect"
+        create_from_scratch: false
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "203.0.113.44",
@@ -82,6 +86,7 @@ sources:
           "response_time": 12
         }
       - type: "request"
+        create_from_scratch: true
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "192.0.2.100",
@@ -97,6 +102,7 @@ sources:
           "response_time": 156
         }
       - type: "response"
+        create_from_scratch: false
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
         details: {
           "client_ip": "198.51.100.80",
@@ -450,6 +456,18 @@ sources:
         }
 
 dependencies:
+  - trigger: 
+      source: "web_server"
+      event_type: "request"
+    action:
+      source: "web_server"
+      event_type: "response"
+  - trigger: 
+      source: "web_server"
+      event_type: "request"
+    action:
+      source: "web_server"
+      event_type: "error"
   - trigger: 
       source: "web_server"
       event_type: "request"

@@ -155,6 +155,11 @@ class EventGenerator:
 
             # Choose a random event type
             event_type = random.choice(event_types)
+            
+            # Check if create_from_scratch is true
+            if not event_type.get('create_from_scratch', False):
+                continue  # Skip event creation if create_from_scratch is not true
+
             message = event_type['format']
             event_type_name = event_type['type']
             details = event_type.get('details', {})
