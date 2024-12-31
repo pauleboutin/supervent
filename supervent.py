@@ -127,7 +127,7 @@ class EventGenerator:
             details['timestamp'] = formatted_timestamp
 
             # Format the message with the details
-            formatted_message = message.format(**details)
+            formatted_message = self.format_message(message, details)
 
             # Generate the event
             event = {
@@ -135,7 +135,7 @@ class EventGenerator:
                 '_time': fake_timestamp,  # Insert the generated timestamp
                 'message': formatted_message,  # Include the formatted message
                 'event_type': event_type_name,  # Include the event type name
-                'details': details  # Include the details
+                'attributes': details  # Include the details as attributes
             }
             events.append(event)
 
@@ -190,11 +190,21 @@ class EventGenerator:
         dependent_event = {
             'source': action['source'],
             '_time': event['_time'],
-            'message': action['event_type'],
+            'message': self.format_message(action['event_type'], event.get('attributes', {}).copy()),  # Format the message with attributes
             'event_type': action['event_type'],  # Ensure the event_type field is included
-            'details': event.get('details', {}).copy()  # Copy details to avoid modifying the original event
+            'attributes': event.get('attributes', {}).copy()  # Copy attributes to avoid modifying the original event
         }
         return dependent_event
+
+    def format_message(self, message, details):
+        """Format the message with the details, removing quotes around parameter names and values unless there is a space."""
+        formatted_details = {}
+        for key, value in details.items():
+            if isinstance(value, str) and ' ' in value:
+                formatted_details[key] = f'"{value}"'
+            else:
+                formatted_details[key] = value
+        return message.format(**formatted_details)
 
     def parse_time_period(self, time_period):
         print(f"Received time period for parsing: {time_period}")  # Debug statement
