@@ -12,18 +12,14 @@ sources:
   web_server:
     description: "Apache HTTP Server"
     volume:
-      - time_period:
-          start: "2024-12-09T08:00:00Z"
-          end: "2024-12-09T10:00:00Z"
-        count: 1200
-        distribution: normal
-        details: "Web server request event"
-      - time_period:
-          start: "2024-12-09T10:00:00Z"
-          end: "2024-12-09T12:00:00Z"
-        count: 800
+      - pattern: "weekday"
+        count: 10000  # Total count for the pattern
+        distribution: gaussian  # a bell curve distribution throughout the day
+        details: "Web server events"
+      - pattern: "weekend"
+        count: 5000  # Total count for the pattern
         distribution: random
-        details: "Web server response event"
+        details: "Web server events"
     event_types:
       - type: "request"
         format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
@@ -122,7 +118,7 @@ sources:
       - time_period:
           start: "2024-12-09T08:00:00Z"
           end: "2024-12-09T10:00:00Z"
-        distribution: normal
+        distribution: gaussian  # Changed from normal to gaussian
         details: "API request event"
       - time_period:
           start: "2024-12-09T10:00:00Z"
@@ -292,7 +288,7 @@ sources:
       - time_period:
           start: "2024-12-09T08:00:00Z"
           end: "2024-12-09T10:00:00Z"
-        distribution: normal
+        distribution: gaussian  # Changed from normal to gaussian
         details: "Database query event"
       - time_period:
           start: "2024-12-09T10:00:00Z"

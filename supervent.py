@@ -59,51 +59,93 @@ class EventGenerator:
         print("Starting event generation...")
         for source, event in self.config['sources'].items():
             print(f"Generating events for source: {source}")
-            self.generate_source_events(source, event)
+            self.generate_source_events(source, event, start_time, end_time)
         print("Event generation completed.")
 
-    def generate_source_events(self, source, event):
+    def generate_source_events(self, source, event, start_time, end_time):
         print(f"Generating source events for: {source}")
         parameters = event['volume']
         event_types = event['event_types']
         source_description = event['description']
         print(f"Parameters for {source}: {parameters}")
         for volume in parameters:
-            count = volume.get('count', 0)
+            pattern = volume.get('pattern')
+            count = int(volume.get('count', 0))  # Ensure count is an integer
             distribution = volume['distribution']
-            time_period = volume['time_period']
-            print(f"Generating {count} events with {distribution} distribution for time period: {time_period}")
-            
-            # Debug statement before processing time_period
-            print(f"About to process time_period: {time_period} (type: {type(time_period)})")  # Debug statement
+            details = volume['details']
+            print(f"Generating {count} events with {distribution} distribution for pattern: {pattern}")
 
-            # If the time period is a single timestamp, generate events around that time
-            if isinstance(time_period, str):
-                print(f"Time period is a string: {time_period}")  # Debug statement
-                try:
-                    start_time = datetime.fromisoformat(time_period.replace('Z', '+00:00'))
-                    end_time = start_time  # Same for both if it's a single timestamp
-                    print(f"Parsed start_time: {start_time}, end_time: {end_time}")  # Debug statement
-                    self.create_events(count, distribution, {'start': start_time, 'end': end_time}, source_description, event_types, source)
-                except Exception as e:
-                    print(f"Error parsing time period: {e}")  # Debug statement for error handling
+            if pattern:
+                self.generate_pattern_events(pattern, count, distribution, start_time, end_time, source_description, event_types, source)
             else:
-                print(f"Time period is not a string, it is: {type(time_period)}")  # Debug statement
+                time_period = volume['time_period']
                 self.create_events(count, distribution, time_period, source_description, event_types, source)
+
+    def generate_pattern_events(self, pattern, count, distribution, start_time, end_time, source_description, event_types, source):
+        if pattern == "weekday":
+            self.generate_weekday_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        elif pattern == "weekend":
+            self.generate_weekend_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        elif pattern == "24/7":
+            self.generate_24_7_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        elif pattern == "sine_wave":
+            self.generate_sine_wave_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        elif pattern == "linear_increase":
+            self.generate_linear_increase_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        else:
+            raise ValueError(f"Unsupported pattern type: {pattern}")
+
+    def generate_weekday_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+        # Generate events for weekdays (Monday to Friday)
+        current_time = start_time
+        while current_time < end_time:
+            if current_time.weekday() < 5:  # Monday to Friday
+                self.create_events(count // 5, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
+            current_time += timedelta(days=1)
+
+    def generate_weekend_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+        # Generate events for weekends (Saturday and Sunday)
+        current_time = start_time
+        while current_time < end_time:
+            if current_time.weekday() >= 5:  # Saturday and Sunday
+                self.create_events(count // 2, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
+            current_time += timedelta(days=1)
+
+    def generate_24_7_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+        # Generate events for 24/7
+        total_days = (end_time - start_time).days + 1
+        self.create_events(count // total_days, distribution, {'start': start_time, 'end': end_time}, source_description, event_types, source)
+
+    def generate_sine_wave_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+        # Generate events based on a sine wave pattern
+        total_seconds = (end_time - start_time).total_seconds()
+        for i in range(count):
+            t = i / count * total_seconds
+            amplitude = (1 + math.sin(2 * math.pi * t / total_seconds)) / 2
+            event_time = start_time + timedelta(seconds=t)
+            self.create_events(int(amplitude * count), distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
+
+    def generate_linear_increase_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+        # Generate events based on a linear increase pattern
+        total_seconds = (end_time - start_time).total_seconds()
+        for i in range(count):
+            t = i / count * total_seconds
+            event_time = start_time + timedelta(seconds=t)
+            self.create_events(i + 1, distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
 
     def create_events(self, count, distribution, time_period, source_description, event_types, source):
         # Create a list to hold events before sending to Axiom
         events = []  
         start_time, end_time = self.parse_time_period(time_period)  # Parse the time period
 
-        # Calculate the mean and standard deviation for normal distribution
+        # Calculate the mean and standard deviation for gaussian distribution
         mean_time = start_time + (end_time - start_time) / 2  # Mean is the midpoint
         std_dev = (end_time - start_time) / 6  # Example: spread events over the range
 
         for _ in range(count):
             # Generate the event based on the specified distribution
-            if distribution == 'normal':
-                # Generate a fake timestamp based on a normal distribution
+            if distribution == 'gaussian':
+                # Generate a fake timestamp based on a gaussian distribution
                 fake_timestamp = self.generate_normal_time(mean_time, std_dev)
             elif distribution == 'random':
                 # Generate a fake timestamp uniformly between start_time and end_time
@@ -276,8 +318,8 @@ class EventGenerator:
             pass  # Replace with actual implementation
 
     def generate_normal_time(self, mean, std_dev):
-        """Generate a random datetime based on a normal distribution."""
-        # Generate a random time in seconds based on normal distribution
+        """Generate a random datetime based on a gaussian distribution."""
+        # Generate a random time in seconds based on gaussian distribution
         random_seconds = int(np.random.normal(0, std_dev.total_seconds()))
         
         # Create a new datetime by adding the random seconds as a timedelta
