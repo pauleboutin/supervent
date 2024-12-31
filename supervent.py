@@ -44,6 +44,7 @@ class EventGenerator:
     def __init__(self, event_frequencies, config):
         self.event_frequencies = event_frequencies
         self.config = config
+        self.dependencies = config.get('dependencies', [])
 
         # Set up signal handling
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -55,42 +56,40 @@ class EventGenerator:
 
     def generate_events(self, start_time, end_time):
         print("Starting event generation...")
-        for event in self.config['events']:
-            event_type = event['type']
-            print(f"Generating events for type: {event_type}")
-            self.generate_source_events(event_type)
+        for source, event in self.config['sources'].items():
+            print(f"Generating events for source: {source}")
+            self.generate_source_events(source, event)
         print("Event generation completed.")
 
-    def generate_source_events(self, event_type):
-        print(f"Generating source events for: {event_type}")
-        for event in self.config['events']:
-            if event['type'] == event_type:
-                parameters = event['parameters']
-                print(f"Parameters for {event_type}: {parameters}")
-                for volume in parameters['volume']:
-                    count = volume['count']
-                    distribution = volume['distribution']
-                    time_period = volume['time_period']
-                    print(f"Generating {count} events with {distribution} distribution for time period: {time_period}")
-                    
-                    # Debug statement before processing time_period
-                    print(f"About to process time_period: {time_period} (type: {type(time_period)})")  # Debug statement
+    def generate_source_events(self, source, event):
+        print(f"Generating source events for: {source}")
+        parameters = event['volume']
+        event_types = event['event_types']
+        print(f"Parameters for {source}: {parameters}")
+        for volume in parameters:
+            count = volume['count']
+            distribution = volume['distribution']
+            time_period = volume['time_period']
+            print(f"Generating {count} events with {distribution} distribution for time period: {time_period}")
+            
+            # Debug statement before processing time_period
+            print(f"About to process time_period: {time_period} (type: {type(time_period)})")  # Debug statement
 
-                    # If the time period is a single timestamp, generate events around that time
-                    if isinstance(time_period, str):
-                        print(f"Time period is a string: {time_period}")  # Debug statement
-                        try:
-                            start_time = datetime.fromisoformat(time_period.replace('Z', '+00:00'))
-                            end_time = start_time  # Same for both if it's a single timestamp
-                            print(f"Parsed start_time: {start_time}, end_time: {end_time}")  # Debug statement
-                            self.create_events(count, distribution, {'start': start_time, 'end': end_time}, event_type)
-                        except Exception as e:
-                            print(f"Error parsing time period: {e}")  # Debug statement for error handling
-                    else:
-                        print(f"Time period is not a string, it is: {type(time_period)}")  # Debug statement
-                        self.create_events(count, distribution, time_period, event_type)
+            # If the time period is a single timestamp, generate events around that time
+            if isinstance(time_period, str):
+                print(f"Time period is a string: {time_period}")  # Debug statement
+                try:
+                    start_time = datetime.fromisoformat(time_period.replace('Z', '+00:00'))
+                    end_time = start_time  # Same for both if it's a single timestamp
+                    print(f"Parsed start_time: {start_time}, end_time: {end_time}")  # Debug statement
+                    self.create_events(count, distribution, {'start': start_time, 'end': end_time}, source, event_types)
+                except Exception as e:
+                    print(f"Error parsing time period: {e}")  # Debug statement for error handling
+            else:
+                print(f"Time period is not a string, it is: {type(time_period)}")  # Debug statement
+                self.create_events(count, distribution, time_period, source, event_types)
 
-    def create_events(self, count, distribution, time_period, event_type):
+    def create_events(self, count, distribution, time_period, source, event_types):
         # Create a list to hold events before sending to Axiom
         events = []  
         start_time, end_time = self.parse_time_period(time_period)  # Parse the time period
@@ -110,13 +109,22 @@ class EventGenerator:
             else:
                 raise ValueError(f"Unsupported distribution type: {distribution}")
 
+            # Choose a random event type
+            event_type = random.choice(event_types)
+            message = event_type['format']
+            event_type_name = event_type['type']
+
             # Generate the event
             event = {
-                'event_type': event_type,  # Use the event_type parameter
+                'source': source,  # Use the source parameter
                 '_time': random_timestamp,  # Insert the generated timestamp
-                'details': f'Generated {event_type} event based on {distribution} distribution.'
+                'message': message,  # Include the chosen event type format
+                'event_type': event_type_name  # Include the event type name
             }
             events.append(event)
+
+            # Chain events based on dependencies
+            self.chain_events(event, events)
 
             # Send events in batches of 200
             if len(events) >= 200:
@@ -125,6 +133,25 @@ class EventGenerator:
         # Send any remaining events that didn't make a full batch
         if events:
             self.send_events_to_axiom(events)
+
+    def chain_events(self, event, events):
+        """Chain events based on the dependencies specified in the configuration."""
+        print(f"Checking dependencies for event: {event}")  # Debug statement
+        for dependency in self.dependencies:
+            trigger = dependency['trigger']
+            action = dependency['action']
+            print(f"Checking dependency: {dependency}")  # Debug statement
+            if event['source'] == trigger['source'] and event['event_type'] == trigger['event_type']:
+                if 'message' in trigger and event['message'] != trigger['message']:
+                    continue
+                # Create the dependent event
+                dependent_event = {
+                    'source': action['source'],
+                    '_time': event['_time'],
+                    'message': action['event_type']
+                }
+                print(f"Generating dependent event: {dependent_event}")  # Debug statement
+                events.append(dependent_event)
 
     def parse_time_period(self, time_period):
         print(f"Received time period for parsing: {time_period}")  # Debug statement

@@ -8,51 +8,164 @@ description: >
 start_time: "2024-12-09T00:00:00Z"  # Start time for the dataset
 end_time: "2024-12-15T23:59:59Z"    # End time for the dataset
 
-event_frequencies:
-  # Define any global event frequencies here if needed
-  web_traffic: "no-op"  # Example of a frequency setting
+sources:  
+  web_server:
+    description: "Emulating Apache HTTP Server"
+    volume:
+      - time_period:
+          start: "2024-12-09T08:00:00Z"
+          end: "2024-12-09T10:00:00Z"
+        count: 1200
+        distribution: normal
+        details: "Web server request event"
+      - time_period:
+          start: "2024-12-09T10:00:00Z"
+          end: "2024-12-09T12:00:00Z"
+        count: 800
+        distribution: random
+        details: "Web server response event"
+    event_types:
+      - type: "request"
+        format: "GET /index.html HTTP/1.1"
+      - type: "response"
+        format: "HTTP/1.1 200 OK"
+      - type: "error"
+        format: "HTTP/1.1 404 Not Found"
+      - type: "redirect"
+        format: "HTTP/1.1 301 Moved Permanently"
+      - type: "request"
+        format: "POST /login HTTP/1.1"
+      - type: "response"
+        format: "HTTP/1.1 500 Internal Server Error"
 
-events:
-  - type: web_traffic
-    description: Simulate normal web traffic with a surge during peak hours.
-    parameters:
-      frequency: "no-op"  # Indicates that frequency is not applicable for this event type
-      volume:
-        - time_period:
-            start: "2024-12-09T08:00:00Z"
-            end: "2024-12-09T10:00:00Z"
-          count: 1200
-          distribution: "random"
-        - time_period:
-            start: "2024-12-09T10:00:00Z"
-            end: "2024-12-09T12:00:00Z"
-          count: 800
-          distribution: "random"
-        - time_period:
-            start: "2024-12-09T12:00:00Z"
-            end: "2024-12-09T14:00:00Z"
-          count: 600
-          distribution: "random"
-        
+  app_server:
+    description: "Emulating Express.js API Server"
+    volume:
+      - time_period:
+          start: "2024-12-09T08:00:00Z"
+          end: "2024-12-09T10:00:00Z"
+        count: 1000
+        distribution: normal
+        details: "API request event"
+      - time_period:
+          start: "2024-12-09T10:00:00Z"
+          end: "2024-12-09T12:00:00Z"
+        count: 600
+        distribution: random
+        details: "API response event"
+    event_types:
+      - type: "api_request"
+        format: "POST /api/v1/resource"
+      - type: "api_response"
+        format: "200 OK"
+      - type: "api_request"
+        format: "GET /api/v1/resource"
+      - type: "api_response"
+        format: "404 Not Found"
+      - type: "api_request"
+        format: "PUT /api/v1/resource"
+      - type: "api_response"
+        format: "500 Internal Server Error"
+      - type: "api_request"
+        format: "DELETE /api/v1/resource"
+      - type: "api_response"
+        format: "401 Unauthorized"
 
-  - type: database_problem
-    description: Simulate a database issue affecting health checks.
-    parameters:
-      frequency: "no-op"  # Not applicable for this event type
-      volume:
-        - time_period:
-            start: "2024-12-10T12:00:00Z"
-            end: "2024-12-10T14:00:00Z"
-          count: 100  # Total events expected in this period
-          distribution: "normal"  # Example distribution function
+  database_server:
+    description: "Emulating MySQL Database Server"
+    volume:
+      - time_period:
+          start: "2024-12-09T08:00:00Z"
+          end: "2024-12-09T10:00:00Z"
+        count: 500
+        distribution: normal
+        details: "Database query event"
+      - time_period:
+          start: "2024-12-09T10:00:00Z"
+          end: "2024-12-09T12:00:00Z"
+        count: 300
+        distribution: random
+        details: "Database update event"
+    event_types:
+      - type: "query"
+        format: "SELECT * FROM users WHERE id = ?"
+      - type: "update"
+        format: "UPDATE users SET name = ? WHERE id = ?"
+      - type: "insert"
+        format: "INSERT INTO users (name, email) VALUES (?, ?)"
+      - type: "delete"
+        format: "DELETE FROM users WHERE id = ?"
+      - type: "query"
+        format: "SELECT * FROM orders WHERE user_id = ?"
+      - type: "update"
+        format: "UPDATE orders SET status = ? WHERE id = ?"
+      - type: "query"
+        format: "SELECT * FROM products WHERE category = ?"
+      - type: "insert"
+        format: "INSERT INTO products (name, price) VALUES (?, ?)"
 
-  - type: breakin_attempt
-    description: Inject events for unauthorized access attempts.
-    parameters:
-      frequency: "no-op"  # Not applicable for this event type
-      volume:
-        - time_period:
-            start: "2024-12-10T13:30:00Z"
-            end: "2024-12-10T14:30:00Z"
-          count: 5
-          distribution: "random"
+dependencies:
+  - trigger: 
+      source: "web_server"
+      event_type: "request"
+    action:
+      source: "app_server"
+      event_type: "api_request"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_request"
+    action:
+      source: "database_server"
+      event_type: "query"
+  - trigger: 
+      source: "database_server"
+      event_type: "query"
+    action:
+      source: "app_server"
+      event_type: "api_response"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_response"
+    action:
+      source: "web_server"
+      event_type: "response"
+  - trigger: 
+      source: "database_server"
+      event_type: "update"
+    action:
+      source: "app_server"
+      event_type: "api_response"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_response"
+    action:
+      source: "web_server"
+      event_type: "response"
+  # Error propagation dependencies
+  - trigger: 
+      source: "database_server"
+      event_type: "error"
+    action:
+      source: "app_server"
+      event_type: "api_response"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_response"
+      message: "500 Internal Server Error"
+    action:
+      source: "web_server"
+      event_type: "error"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_response"
+      message: "404 Not Found"
+    action:
+      source: "web_server"
+      event_type: "error"
+  - trigger: 
+      source: "app_server"
+      event_type: "api_response"
+      message: "401 Unauthorized"
+    action:
+      source: "web_server"
+      event_type: "error"
