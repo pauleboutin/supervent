@@ -1,0 +1,58 @@
+# config.yaml
+
+description: >
+  This configuration defines the event patterns and behaviors for the simulation.
+  Users can specify event types, volumes, and distribution functions for event generation.
+
+# Define the overall time range for the dataset
+start_time: "2024-12-09T00:00:00Z"  # Start time for the dataset
+end_time: "2024-12-15T23:59:59Z"    # End time for the dataset
+
+event_frequencies:
+  # Define any global event frequencies here if needed
+  web_traffic: "no-op"  # Example of a frequency setting
+
+events:
+  - type: web_traffic
+    description: Simulate normal web traffic with a surge during peak hours.
+    parameters:
+      frequency: "no-op"  # Indicates that frequency is not applicable for this event type
+      volume:
+        - time_period:
+            start: "2024-12-09T08:00:00Z"
+            end: "2024-12-09T10:00:00Z"
+          count: 1200
+          distribution: "random"
+        - time_period:
+            start: "2024-12-09T10:00:00Z"
+            end: "2024-12-09T12:00:00Z"
+          count: 800
+          distribution: "random"
+        - time_period:
+            start: "2024-12-09T12:00:00Z"
+            end: "2024-12-09T14:00:00Z"
+          count: 600
+          distribution: "random"
+        
+
+  - type: database_problem
+    description: Simulate a database issue affecting health checks.
+    parameters:
+      frequency: "no-op"  # Not applicable for this event type
+      volume:
+        - time_period:
+            start: "2024-12-10T12:00:00Z"
+            end: "2024-12-10T14:00:00Z"
+          count: 100  # Total events expected in this period
+          distribution: "normal"  # Example distribution function
+
+  - type: breakin_attempt
+    description: Inject events for unauthorized access attempts.
+    parameters:
+      frequency: "no-op"  # Not applicable for this event type
+      volume:
+        - time_period:
+            start: "2024-12-10T13:30:00Z"
+            end: "2024-12-10T14:30:00Z"
+          count: 5
+          distribution: "random"
