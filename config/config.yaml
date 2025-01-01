@@ -23,100 +23,37 @@ sources:
     event_types:
       - type: "request"
         create_from_scratch: true
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "203.0.113.42",
-          "user": "frank",
-          "timestamp": "30/Dec/2024:09:23:51 +0000",
-          "method": "GET",
-          "path": "/api/v2/users",
-          "protocol": "HTTP/2.0",
-          "status": 200,
-          "bytes": 2326,
-          "referer": "https://app.example.com/dashboard",
-          "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "response_time": 182
-        }
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time} (request_id: {request_id})'
+        details:
+          "client_ip": "{client_ip}"
+          "user": "{user}"
+          "timestamp": "{timestamp}"
+          "method": "{method}"
+          "path": "{path}"
+          "protocol": "HTTP/2.0"
+          "status": 200
+          "bytes": 2326
+          "referer": "{referer}"
+          "user_agent": "{user_agent}"
+          "response_time": "{response_time}"
+          "request_id": "{request_id}"  # Unique identifier for the request
+
       - type: "response"
         create_from_scratch: false
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "192.0.2.88",
-          "user": "alice",
-          "timestamp": "30/Dec/2024:09:23:52 +0000",
-          "method": "GET",
-          "path": "/assets/main.js",
-          "protocol": "HTTP/2.0",
-          "status": 200,
-          "bytes": 15409,
-          "referer": "https://example.com/index.html",
-          "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
-          "response_time": 143
-        }
-      - type: "error"
-        create_from_scratch: false
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "198.51.100.77",
-          "user": "-",
-          "timestamp": "30/Dec/2024:09:23:52 +0000",
-          "method": "PUT",
-          "path": "/api/v2/documents/1234",
-          "protocol": "HTTP/2.0",
-          "status": 403,
-          "bytes": 983,
-          "referer": "-",
-          "user_agent": "curl/8.4.0",
-          "response_time": 167
-        }
-      - type: "redirect"
-        create_from_scratch: false
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "203.0.113.44",
-          "user": "bob",
-          "timestamp": "30/Dec/2024:09:23:53 +0000",
-          "method": "GET",
-          "path": "/health",
-          "protocol": "HTTP/1.1",
-          "status": 200,
-          "bytes": 43,
-          "referer": "-",
-          "user_agent": "kube-probe/1.28",
-          "response_time": 12
-        }
-      - type: "request"
-        create_from_scratch: true
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "192.0.2.100",
-          "user": "-",
-          "timestamp": "30/Dec/2024:09:23:53 +0000",
-          "method": "POST",
-          "path": "/api/v2/events",
-          "protocol": "HTTP/2.0",
-          "status": 429,
-          "bytes": 782,
-          "referer": "-",
-          "user_agent": "python-requests/2.31.0",
-          "response_time": 156
-        }
-      - type: "response"
-        create_from_scratch: false
-        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time}'
-        details: {
-          "client_ip": "198.51.100.80",
-          "user": "carol",
-          "timestamp": "30/Dec/2024:09:23:54 +0000",
-          "method": "GET",
-          "path": "/static/css/main.min.css",
-          "protocol": "HTTP/2.0",
-          "status": 304,
-          "bytes": 0,
-          "referer": "https://example.com/shop",
-          "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "response_time": 45
-        }
+        format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time} (request_id: {request_id})'
+        details:
+          "client_ip": "{client_ip}"
+          "user": "{user}"
+          "timestamp": "{timestamp}"
+          "method": "{method}"
+          "path": "{path}"
+          "protocol": "HTTP/2.0"
+          "status": 200
+          "bytes": 15409
+          "referer": "{referer}"
+          "user_agent": "{user_agent}"
+          "response_time": "{response_time}"
+          "request_id": "{request_id}"  # Reference to the original request
 
   app_server:
     description: "Express.js API Server"
@@ -140,7 +77,8 @@ sources:
           "method": "GET",
           "path": "/api/v2/users",
           "client_ip": "203.0.113.42",
-          "auth": "frank"
+          "auth": "frank",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "debug"
         format: '[{timestamp}] DEBUG [express:db] [req-id: {req_id}] MongoDB query executed - collection: {collection}, duration: {duration}ms'
@@ -148,7 +86,8 @@ sources:
           "timestamp": "2024-12-30T09:23:51.198Z",
           "req_id": "7f8e9a2b",
           "collection": "users",
-          "duration": 16
+          "duration": 16,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Request completed - status: {status}, duration: {duration}ms'
@@ -156,14 +95,16 @@ sources:
           "timestamp": "2024-12-30T09:23:51.215Z",
           "req_id": "7f8e9a2b",
           "status": 200,
-          "duration": 33
+          "duration": 33,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warn"
         format: '[{timestamp}] WARN [express:auth] [req-id: {req_id}] Failed OAuth validation - token expired - client_ip: {client_ip}'
         details: {
           "timestamp": "2024-12-30T09:23:51.305Z",
           "req_id": "3d4f5g6h",
-          "client_ip": "10.0.47.15"
+          "client_ip": "10.0.47.15",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Request rejected - status: {status}, duration: {duration}ms'
@@ -171,7 +112,8 @@ sources:
           "timestamp": "2024-12-30T09:23:51.308Z",
           "req_id": "3d4f5g6h",
           "status": 401,
-          "duration": 3
+          "duration": 3,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Processing {method} {path} - client_ip: {client_ip}'
@@ -180,7 +122,8 @@ sources:
           "req_id": "9k8l7m6n",
           "method": "PUT",
           "path": "/api/v2/documents/1234",
-          "client_ip": "198.51.100.77"
+          "client_ip": "198.51.100.77",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "error"
         format: '[{timestamp}] ERROR [express:db] [req-id: {req_id}] MongoDB write error - collection: {collection}, error: "{error}"'
@@ -188,14 +131,16 @@ sources:
           "timestamp": "2024-12-30T09:23:52.184Z",
           "req_id": "9k8l7m6n",
           "collection": "documents",
-          "error": "insufficient_permissions"
+          "error": "insufficient_permissions",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:cache] [req-id: {req_id}] Redis cache hit - key: "{key}"'
         details: {
           "timestamp": "2024-12-30T09:23:53.201Z",
           "req_id": "2h3j4k5l",
-          "key": "user:bob:preferences"
+          "key": "user:bob:preferences",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warn"
         format: '[{timestamp}] WARN [express:rate-limit] [req-id: {req_id}] Rate limit exceeded - endpoint: {endpoint}, client_ip: {client_ip}'
@@ -203,7 +148,8 @@ sources:
           "timestamp": "2024-12-30T09:23:53.445Z",
           "req_id": "8m9n0p1q",
           "endpoint": "/api/v2/events",
-          "client_ip": "192.0.2.100"
+          "client_ip": "192.0.2.100",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:server] [req-id: {req_id}] Processing GraphQL query - operation: "{operation}", client_ip: {client_ip}'
@@ -211,7 +157,8 @@ sources:
           "timestamp": "2024-12-30T09:23:54.112Z",
           "req_id": "5r6s7t8u",
           "operation": "getUserProfile",
-          "client_ip": "192.0.2.105"
+          "client_ip": "192.0.2.105",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "debug"
         format: '[{timestamp}] DEBUG [express:db] [req-id: {req_id}] Postgres query completed - duration: {duration}ms, rows: {rows}'
@@ -219,28 +166,32 @@ sources:
           "timestamp": "2024-12-30T09:23:54.167Z",
           "req_id": "5r6s7t8u",
           "duration": 55,
-          "rows": 12
+          "rows": 12,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:metrics] [req-id: {req_id}] Prometheus metrics requested - scope: "{scope}"'
         details: {
           "timestamp": "2024-12-30T09:23:55.223Z",
           "req_id": "1w2x3y4z",
-          "scope": "api_server"
+          "scope": "api_server",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:webhook] [req-id: {req_id}] Processing Stripe webhook - event: "{event}"'
         details: {
           "timestamp": "2024-12-30T09:23:56.445Z",
           "req_id": "7a8b9c0d",
-          "event": "payment.succeeded"
+          "event": "payment.succeeded",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "debug"
         format: '[{timestamp}] DEBUG [express:queue] [req-id: {req_id}] Message published to RabbitMQ - queue: "{queue}"'
         details: {
           "timestamp": "2024-12-30T09:23:56.512Z",
           "req_id": "7a8b9c0d",
-          "queue": "payment_processing"
+          "queue": "payment_processing",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "error"
         format: '[{timestamp}] ERROR [express:auth] [req-id: {req_id}] Invalid API key - client_ip: {client_ip}, scope: "{scope}"'
@@ -248,28 +199,32 @@ sources:
           "timestamp": "2024-12-30T09:23:57.167Z",
           "req_id": "4e5f6g7h",
           "client_ip": "10.0.47.25",
-          "scope": "config_read"
+          "scope": "config_read",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:cache] [req-id: {req_id}] Redis cache invalidated - pattern: "{pattern}"'
         details: {
           "timestamp": "2024-12-30T09:23:57.892Z",
           "req_id": "9j0k1l2m",
-          "pattern": "user:456:*"
+          "pattern": "user:456:*",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warn"
         format: '[{timestamp}] WARN [express:validation] [req-id: {req_id}] Request payload validation failed - endpoint: {endpoint}'
         details: {
           "timestamp": "2024-12-30T09:23:58.445Z",
           "req_id": "5n6p7q8r",
-          "endpoint": "/api/v2/users/456"
+          "endpoint": "/api/v2/users/456",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:queue] [req-id: {req_id}] Consuming message from RabbitMQ - queue: "{queue}"'
         details: {
           "timestamp": "2024-12-30T09:23:59.167Z",
           "req_id": "2s3t4u5v",
-          "queue": "log_processing"
+          "queue": "log_processing",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "error"
         format: '[{timestamp}] ERROR [express:db] [req-id: {req_id}] MongoDB timeout - operation: {operation}, collection: {collection}'
@@ -277,7 +232,8 @@ sources:
           "timestamp": "2024-12-30T09:23:59.334Z",
           "req_id": "8v9w0x1y",
           "operation": "insert",
-          "collection": "logs"
+          "collection": "logs",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '[{timestamp}] INFO [express:metrics] [req-id: {req_id}] Datadog metrics pushed - count: {count}, duration: {duration}ms'
@@ -285,7 +241,8 @@ sources:
           "timestamp": "2024-12-30T09:24:00.223Z",
           "req_id": "3z4a5b6c",
           "count": 47,
-          "duration": 56
+          "duration": 56,
+          "request_id": "{request_id}"  # Reference to the original request
         }
 
   database_server:
@@ -296,6 +253,7 @@ sources:
           end: "2024-12-09T10:00:00Z"
         distribution: gaussian  # Changed from normal to gaussian
         details: "Database query event"
+        request_id: "{request_id}"  # Reference to the original request
       - time_period:
           start: "2024-12-09T10:00:00Z"
           end: "2024-12-09T12:00:00Z"
@@ -307,7 +265,8 @@ sources:
         details: {
           "timestamp": "2024-12-30T09:23:51.167Z",
           "client_ip": "10.0.47.100",
-          "port": 43892
+          "port": 43892,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -315,26 +274,30 @@ sources:
           "timestamp": "2024-12-30T09:23:51.182Z",
           "duration": 127,
           "query": "SELECT u.id, u.email, u.role FROM users u WHERE u.status = 'active' LIMIT 100",
-          "txid": "4f5d8e9a"
+          "txid": "4f5d8e9a",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warning"
         format: '{timestamp} [Warning] [Slow query] Query took {duration}ms: {query}'
         details: {
           "timestamp": "2024-12-30T09:23:51.198Z",
           "duration": 234,
-          "query": "SELECT COUNT(*) FROM user_sessions WHERE last_active > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+          "query": "SELECT COUNT(*) FROM user_sessions WHERE last_active > DATE_SUB(NOW(), INTERVAL 24 HOUR)",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [InnoDB] New connection thread created: thread_id={thread_id}'
         details: {
           "timestamp": "2024-12-30T09:23:51.305Z",
-          "thread_id": 47891
+          "thread_id": 47891,
+          "request_id": "{request_id}"  # Reference to the original request 
         }
       - type: "error"
         format: '{timestamp} [Error] [InnoDB] Lock wait timeout exceeded; try restarting transaction [txid: {txid}]'
         details: {
           "timestamp": "2024-12-30T09:23:51.445Z",
-          "txid": "3d4f5g6h"
+          "txid": "3d4f5g6h",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -342,7 +305,8 @@ sources:
           "timestamp": "2024-12-30T09:23:52.167Z",
           "duration": 89,
           "query": "INSERT INTO documents (id, user_id, content, created_at) VALUES (1234, 456, 'content', NOW())",
-          "txid": "9k8l7m6n"
+          "txid": "9k8l7m6n",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "note"
         format: '{timestamp} [Note] [Replication] Slave I/O thread: connected to master {user}@{host}, replication started in log {log_file} at position {position}'
@@ -351,7 +315,8 @@ sources:
           "user": "repl",
           "host": "db-master:3306",
           "log_file": "mysql-bin.000983",
-          "position": 156
+          "position": 156,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -359,14 +324,16 @@ sources:
           "timestamp": "2024-12-30T09:23:53.112Z",
           "duration": 45,
           "query": "UPDATE user_preferences SET theme='dark' WHERE user_id=789",
-          "txid": "2h3j4k5l"
+          "txid": "2h3j4k5l",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warning"
         format: '{timestamp} [Warning] [Buffer] InnoDB buffer pool is > 80% full. Current: {current}GB of {total}GB'
         details: {
           "timestamp": "2024-12-30T09:23:53.334Z",
           "current": 12.8,
-          "total": 16
+          "total": 16,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -374,13 +341,15 @@ sources:
           "timestamp": "2024-12-30T09:23:54.167Z",
           "duration": 167,
           "query": "SELECT * FROM event_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR) AND type='error'",
-          "txid": "8m9n0p1q"
+          "txid": "8m9n0p1q",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "error"
         format: '{timestamp} [Error] [Connection] Too many connections (max_connections={max_connections})'
         details: {
           "timestamp": "2024-12-30T09:23:54.445Z",
-          "max_connections": 1000
+          "max_connections": 1000,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -388,7 +357,8 @@ sources:
           "timestamp": "2024-12-30T09:23:55.167Z",
           "duration": 78,
           "query": "BEGIN; INSERT INTO payment_transactions VALUES (/* ... */); COMMIT",
-          "txid": "5r6s7t8u"
+          "txid": "5r6s7t8u",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warning"
         format: '{timestamp} [Warning] [Query] Aborted connection {thread_id} to db: {db} user: {user} host: {host} (Got timeout reading communication packets)'
@@ -397,7 +367,8 @@ sources:
           "thread_id": 47891,
           "db": "api_db",
           "user": "app_user",
-          "host": "10.0.47.100"
+          "host": "10.0.47.100",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [InnoDB] Completed index build for table {db}.{table}, index {index} in {duration} seconds'
@@ -406,14 +377,16 @@ sources:
           "db": "api_db",
           "table": "user_sessions",
           "index": "idx_last_active",
-          "duration": 2.34
+          "duration": 2.34,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "note"
         format: '{timestamp} [Note] [Server] Shutdown initiated by user {user} from host {host}'
         details: {
           "timestamp": "2024-12-30T09:23:57.445Z",
           "user": "admin",
-          "host": "10.0.47.200"
+          "host": "10.0.47.200",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -421,7 +394,8 @@ sources:
           "timestamp": "2024-12-30T09:23:58.167Z",
           "duration": 234,
           "query": "DELETE FROM expired_tokens WHERE expires_at < NOW() - INTERVAL 30 DAY",
-          "txid": "4e5f6g7h"
+          "txid": "4e5f6g7h",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "warning"
         format: '{timestamp} [Warning] [InnoDB] Table {db}.{table} size exceeds configured max_table_size of {max_size}GB'
@@ -429,7 +403,8 @@ sources:
           "timestamp": "2024-12-30T09:23:59.223Z",
           "db": "api_db",
           "table": "event_logs",
-          "max_size": 2
+          "max_size": 2,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "info"
         format: '{timestamp} [Info] [Query] {duration}ms {query} [txid: {txid}]'
@@ -437,14 +412,16 @@ sources:
           "timestamp": "2024-12-30T09:23:59.445Z",
           "duration": 145,
           "query": "CREATE INDEX idx_user_email ON users(email) ALGORITHM=INPLACE",
-          "txid": "9j0k1l2m"
+          "txid": "9j0k1l2m",
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "note"
         format: '{timestamp} [Note] [Replication] Slave SQL thread initialized, starting replication in log {log_file} at position {position}'
         details: {
           "timestamp": "2024-12-30T09:24:00.167Z",
           "log_file": "mysql-bin.000983",
-          "position": 156
+          "position": 156,
+          "request_id": "{request_id}"  # Reference to the original request
         }
       - type: "error"
         format: '{timestamp} [Error] [InnoDB] Foreign key constraint fails for table {db}.{table} [txid: {txid}]'
@@ -452,7 +429,8 @@ sources:
           "timestamp": "2024-12-30T09:24:00.334Z",
           "db": "api_db",
           "table": "user_documents",
-          "txid": "3z4a5b6c"
+          "txid": "3z4a5b6c",
+          "request_id": "{request_id}"  # Reference to the original request
         }
 
 dependencies:
@@ -572,3 +550,109 @@ dependencies:
     action:
       source: "web_server"
       event_type: "response"
+
+acceptable_values:
+  users:
+    - "alice"
+    - "bob"
+    - "frank"
+    - "admin"
+    - "charlie"
+    - "dave"
+    - "eve"
+    - "grace"
+  methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+  paths:
+    - "/api/v2/users"                # Normal path
+    - "/api/v2/documents"             # Normal path
+    - "/index.html"                   # Normal path
+    - "/assets/main.js"               # Normal path
+    - "/api/v2/admin"                 # Admin path, could return 403 for unauthorized access
+    - "/api/v2/users/1234"            # Specific user path, could return 404 if user not found
+    - "/api/v2/settings"               # Settings path, could return 403 if not authorized
+    - "/api/v2/login"                  # Login path, could return 200 or 403 based on credentials
+    - "/api/v2/logout"                 # Logout path, could return 200 or 403 if not logged in
+    - "/api/v2/forbidden"              # Always returns 403
+    - "/api/v2/notfound"               # Always returns 404
+    - "/api/v2/server-error"           # Always returns 500
+    - "/api/v2/maintenance"            # Always returns 503
+  referers:
+    - "https://example.com"
+    - "https://app.example.com/dashboard"
+    - "https://example.com/login"
+  user_agents:
+    - "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
+    - "Mozilla/5.0 (Android 12; Mobile; Nexus 5X Build/SQ1A.220205.002) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Mobile Safari/537.36"
+    - "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.90 Mobile Safari/537.36"
+    - "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+    - "Mozilla/5.0 (Linux; Android 11; Pixel 4 XL Build/RQ3A.210205.001) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Mobile Safari/537.36"
+    - "Mozilla/5.0 (iPad; CPU OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1"
+  protocols:
+    - "HTTP/1.1"
+    - "HTTP/2.0"
+  statuses:
+    - 200
+    - 301
+    - 302
+    - 403
+    - 404
+    - 500
+    - 503
+
+path_status_mapping:
+  "/api/v2/forbidden": 403
+  "/api/v2/notfound": 404
+  "/api/v2/server-error": 500
+  "/api/v2/maintenance": 503
+  "/api/v2/users/1234": 404  # Example for a specific user not found
+  "/api/v2/admin": 403        # Admin access denied
+  "/api/v2/settings": 403     # Unauthorized settings access
+
+# New section for client IP and response time settings
+client_ip_ranges:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+
+response_time:
+  min: 50   # Minimum response time in milliseconds
+  max: 5000 # Maximum response time in milliseconds
+
+event_types:
+  - type: "request"
+    create_from_scratch: true
+    format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time} (request_id: {request_id})'
+    details:
+      client_ip: "{client_ip}"
+      user: "{user}"
+      timestamp: "{timestamp}"
+      method: "{method}"
+      path: "{path}"
+      protocol: "HTTP/2.0"
+      status: 200
+      bytes: 2326
+      referer: "{referer}"
+      user_agent: "{user_agent}"
+      response_time: "{response_time}"
+      request_id: "{request_id}"  # Unique identifier for the request
+
+  - type: "response"
+    create_from_scratch: false
+    format: '{client_ip} - {user} [{timestamp}] "{method} {path} {protocol}" {status} {bytes} "{referer}" "{user_agent}" {response_time} (request_id: {request_id})'
+    details:
+      client_ip: "{client_ip}"
+      user: "{user}"
+      timestamp: "{timestamp}"
+      method: "{method}"
+      path: "{path}"
+      protocol: "HTTP/2.0"
+      status: 200
+      bytes: 15409
+      referer: "{referer}"
+      user_agent: "{user_agent}"
+      response_time: "{response_time}"
+      request_id: "{request_id}"  # Reference to the original request

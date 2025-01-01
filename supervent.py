@@ -8,6 +8,9 @@ import yaml
 import numpy as np  # You may need to install this library if you use it for distributions
 import signal
 import sys
+import uuid  # Importing uuid to generate unique IDs
+import ipaddress
+import time  # Import time for measuring execution time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,28 +38,61 @@ def main():
         generator = EventGenerator(event_frequencies, config)
         print("Event generator created.")
 
+        # Initialize event counter as an integer
+        event_count = 0  # This will count the total number of events generated
+        start_generation_time = time.time()  # Start timing
+
+        # Generate events
         generator.generate_events(start_time, end_time)
-        print("Event generation completed.")
+
+        # Update event_count based on the number of unique processed events
+        event_count += len(generator.processed_events)  # Count unique events
+
+        # Calculate total time taken
+        total_time = time.time() - start_generation_time  # This should be a float
+        print(f"Generated {event_count} events in {total_time:.2f} seconds.")
+
     except Exception as e:
         print("An error occurred:", e)
+        # Print the number of events generated before the error
+        print(f"Generated {event_count} events before error.")
 
 class EventGenerator:
     def __init__(self, event_frequencies, config):
         self.event_frequencies = event_frequencies
         self.config = config
+        
+        # Load acceptable values from config
+        self.users = self.config['acceptable_values']['users']
+        self.methods = self.config['acceptable_values']['methods']
+        self.paths = self.config['acceptable_values']['paths']
+        self.referers = self.config['acceptable_values']['referers']
+        self.user_agents = self.config['acceptable_values']['user_agents']
+        self.protocols = self.config['acceptable_values']['protocols']
+        self.statuses = self.config['acceptable_values']['statuses']
+        
+        # Load client IP ranges and response time settings
+        self.client_ip_ranges = self.config['client_ip_ranges']
+        self.response_time_min = self.config['response_time']['min']
+        self.response_time_max = self.config['response_time']['max']
+
         self.dependencies = config.get('dependencies', [])
-        self.processed_events = set()  # Track processed events to prevent loops
+        self.processed_events = set()  # Initialize processed events counter
+        self.start_generation_time = None  # Initialize start time
 
         # Set up signal handling
         signal.signal(signal.SIGINT, self.signal_handler)
 
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
-        print("Exiting gracefully...")
+        total_time = time.time() - self.start_generation_time  # Calculate total time
+        # Use a simple print statement to avoid reentrant calls
+        print(f"\nExiting gracefully... Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
         sys.exit(0)  # Exit the program with a success status
 
     def generate_events(self, start_time, end_time):
         print("Starting event generation...")
+        self.start_generation_time = time.time()  # Set start time
         for source, event in self.config['sources'].items():
             print(f"Generating events for source: {source}")
             self.generate_source_events(source, event, start_time, end_time)
@@ -68,6 +104,7 @@ class EventGenerator:
         event_types = event['event_types']
         source_description = event['description']
         print(f"Parameters for {source}: {parameters}")
+
         for volume in parameters:
             pattern = volume.get('pattern')
             count = int(volume.get('count', 0))  # Ensure count is an integer
@@ -75,6 +112,11 @@ class EventGenerator:
             details = volume['details']
             print(f"Generating {count} events with {distribution} distribution for pattern: {pattern}")
 
+            # Check if count is an integer
+            if not isinstance(count, int):
+                raise ValueError(f"Expected count to be an integer, got {type(count)} instead.")
+
+            # Generate events based on the pattern
             if pattern:
                 self.generate_pattern_events(pattern, count, distribution, start_time, end_time, source_description, event_types, source)
             else:
@@ -134,6 +176,10 @@ class EventGenerator:
             self.create_events(i + 1, distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
 
     def create_events(self, count, distribution, time_period, source_description, event_types, source):
+        # Load acceptable values from config
+        paths = self.config['acceptable_values']['paths']
+        path_status_mapping = self.config['path_status_mapping']  # Load path status mapping from config
+
         # Create a list to hold events before sending to Axiom
         events = []  
         start_time, end_time = self.parse_time_period(time_period)  # Parse the time period
@@ -143,12 +189,27 @@ class EventGenerator:
         std_dev = (end_time - start_time) / 6  # Example: spread events over the range
 
         for _ in range(count):
+            # Generate a unique request ID
+            request_id = str(uuid.uuid4())
+
+            # Randomly select a path from the acceptable paths
+            selected_path = random.choice(paths)
+
+            # Determine the status code based on the selected path
+            status_code = path_status_mapping.get(selected_path, 200)  # Default to 200 if not found
+
+            # Randomly select other values as before
+            selected_user = random.choice(self.users)
+            selected_method = random.choice(self.methods)
+            selected_referer = random.choice(self.referers)
+            selected_user_agent = random.choice(self.user_agents)
+            selected_protocol = random.choice(self.protocols)
+            selected_status = random.choice(self.statuses)
+
             # Generate the event based on the specified distribution
             if distribution == 'gaussian':
-                # Generate a fake timestamp based on a gaussian distribution
                 fake_timestamp = self.generate_normal_time(mean_time, std_dev)
             elif distribution == 'random':
-                # Generate a fake timestamp uniformly between start_time and end_time
                 fake_timestamp = self.random_time_between(start_time, end_time)
             else:
                 raise ValueError(f"Unsupported distribution type: {distribution}")
@@ -170,19 +231,46 @@ class EventGenerator:
             else:
                 formatted_timestamp = fake_timestamp.isoformat() + "Z"
 
-            # Update the details with the formatted timestamp
+            # Update the details with the formatted timestamp and request_id
             details['timestamp'] = formatted_timestamp
+            details['request_id'] = request_id  # Include the request_id in the details
+
+            # Ensure consistency in event details
+            details['path'] = details.get('path', '')  # Ensure path is included
+            details['method'] = details.get('method', '')  # Ensure method is included
+            details['client_ip'] = details.get('client_ip', '')  # Ensure client_ip is included
+            details['user'] = details.get('user', '')  # Ensure user is included
+
+            # Use the description for the source in the message
+            source_description = self.config['sources'][source]['description']  # Get the description
+            details['source'] = source_description  # Update details with the description
 
             # Format the message with the details
             formatted_message = self.format_message(message, details)
+            formatted_message += f" (request_id: {request_id})"  # Append the request_id to the message
+
+            # Reintroduce client IP generation
+            client_ip = self.generate_client_ip()  # Keep client IP generation
+            response_time = self.generate_response_time()  # Uncommented for testing
+
+            # Update details with selected values
+            details['user'] = selected_user
+            details['method'] = selected_method
+            details['path'] = selected_path
+            details['referer'] = selected_referer
+            details['user_agent'] = selected_user_agent
+            details['protocol'] = selected_protocol
+            details['status'] = selected_status
+            details['client_ip'] = client_ip  # Set the generated client IP
+            details['response_time'] = response_time  # Set the generated response time
 
             # Generate the event
             event = {
-                'source': source,  # Use the original source name
-                '_time': fake_timestamp,  # Insert the generated timestamp
-                'message': formatted_message,  # Include the formatted message
-                'event_type': event_type_name,  # Include the event type name
-                'attributes': details  # Include the details as attributes
+                'source': source,
+                '_time': fake_timestamp,
+                'message': formatted_message,
+                'event_type': event_type_name,
+                'attributes': details
             }
             events.append(event)
 
@@ -338,6 +426,22 @@ class EventGenerator:
         delta = end - start
         random_seconds = random.randint(0, int(delta.total_seconds()))
         return start + timedelta(seconds=random_seconds)
+
+    def generate_client_ip(self):
+        """Generate a random client IP address from the configured private ranges."""
+        start_time = time.time()  # Start timing
+        private_ip = random.choice([
+            f"10.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}",
+            f"172.{random.randint(16, 31)}.{random.randint(0, 255)}.{random.randint(0, 255)}",
+            f"192.168.{random.randint(0, 255)}.{random.randint(0, 255)}"
+        ])
+        end_time = time.time()  # End timing
+        print(f"Client IP generation took {end_time - start_time:.6f} seconds")  # Print the time taken
+        return private_ip
+
+    def generate_response_time(self):
+        """Generate a random response time between the configured min and max."""
+        return random.randint(self.response_time_min, self.response_time_max)  # Response time in milliseconds
 
 if __name__ == "__main__":
     main()
