@@ -51,7 +51,7 @@ dependencies:
 3. Run the generator:
 
 ### Prerequisites
-- Python 3.8 or higher
+- Python 3.13 or higher
 - Required packages: install using `pip install -r requirements.txt`
 - Configuration file (see `config/config.yaml` for example)
 
