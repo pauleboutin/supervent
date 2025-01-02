@@ -442,10 +442,6 @@ class EventGenerator:
 
 
 
-    def simulate_error_rate(self, service, error_rate):
-        if error_rate == "high":
-            pass
-
     def generate_normal_time(self, mean, std_dev):
         random_seconds = int(np.random.normal(0, std_dev.total_seconds()))
         fake_timestamp = mean + timedelta(seconds=random_seconds)
