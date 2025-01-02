@@ -1,10 +1,12 @@
 # Holiday E-commerce Traffic Simulation Configuration
-This configuration emulates a modern e-commerce platform using a microservices architecture, typically deployed across multiple cloud regions. The system represents a three-tier architecture with web/application servers, caching layer (Redis/Memcached), and database clusters (likely PostgreSQL/MySQL), all behind load balancers.
+# A work in progress for January 2025
+This configuration will emulate a modern e-commerce platform using a microservices architecture, typically deployed across multiple cloud regions. The system represents a three-tier architecture with web/application servers (Apache & Express.js), caching layer (Redis/Memcached), and database clusters (MySQL), all behind load balancers.
 
 ## Event Volume and Cardinality<br/>
 - Base traffic: 1,000 requests/minute (~1.4M daily)<br/>
 - Peak multipliers up to 6x during Cyber Monday (~8.6M daily)<br/>
 - High cardinality elements include:
+- - Visitors (hundreds of thousands)
 - - User sessions and shopping carts (millions)
 - - Product SKUs (hundreds of thousands)
 - - Geographic locations (thousands)
@@ -36,22 +38,10 @@ The configuration generates logs that mirror real-world patterns, not sanitized 
 - Inventory level changes
 - Customer service interaction spikes
 
-Event formats (which are configurable) don't adher to rigid  standards like OpenTelemetry. The dataset intentionally mirrors the messy reality of production systems..
+The dataset intentionally mirrors the messy reality of production systems.
 
-## Reporting and Capacity Planning
-  
-These sections ensure the simulation provides actionable metrics for:
-
-- Real-time performance monitoring
-- Business KPI tracking
-- Capacity planning for future holiday seasons
-- Disaster recovery procedures
-- Infrastructure scaling rules
-
-The capacity planning section specifically models cloud auto-scaling behaviors and database connection pool management, while the reporting section enables business and technical stakeholders to monitor both system health and business metrics.
-
-## Supervent Development
-This configuration is part of the ongoing development of Supervent, a tool designed to generate 100% synthetif yet realistic, high-volume log data for demos, testing and development. EWe actively seek community feedback, especially regarding:
+## Use Cases Wanted!
+How do you use logs for observability, site reliability, capacity planning, product analysis -- whatever matters? I welcome specific examples for which to create log datasets.
 
 - Additional real-world variables and patterns to simulate
 - New error conditions and edge cases
