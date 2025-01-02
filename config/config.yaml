@@ -112,6 +112,13 @@ sources:
         type: "integer"
         min: 100
         max: 5000
+    event_types:
+      - type: "access_log"
+        format: "{client_ip} - - {timestamp} \"{method} {path} {protocol}\" {status} {bytes} \"{referer}\" \"{user_agent}\" {response_time}ms {req_id}"
+        create_from_scratch: true
+      - type: "error_log"
+        format: "{timestamp} [error] {client_ip} {req_id} \"{method} {path}\" {status} - {message}"
+        create_from_scratch: true
     user_behavior:
       geographic_distribution:
         US: 0.4
@@ -182,7 +189,13 @@ sources:
       thread_id:
         type: "string"
         generator: "thread_id"
-
+    event_types:
+      - type: "application_log"
+        format: "{timestamp} {level} [{service}] {thread_id} {req_id} - {message}"
+        create_from_scratch: true
+      - type: "service_metric"
+        format: "{timestamp} METRIC [{service}] {metric_name}={metric_value}"
+        create_from_scratch: true
     service_dependencies:
       auth_service:
         dependencies: ['user-service']
