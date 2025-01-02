@@ -404,31 +404,6 @@ class EventGenerator:
             raise
 
 
-    def random_time(self, start_time, end_time):
-        return start_time + (end_time - start_time) * random.random()
-
-    def normal_random_time(self, mean, std_dev):
-        mean_timestamp = mean.timestamp()
-        random_offset = np.random.normal(0, std_dev)
-        fake_timestamp = mean_timestamp + random_offset
-        return datetime.fromtimestamp(fake_timestamp)
-
-    def store_events(self, events):
-        for event in events:
-            print(f"Storing event: {event}")
-
-    def get_event_frequency(self, source_name, event_type):
-        if source_name in self.event_frequencies['normal_traffic']:
-            if event_type in self.event_frequencies['normal_traffic'][source_name]:
-                frequency_str = self.event_frequencies['normal_traffic'][source_name][event_type]['frequency']
-                if "minute" in frequency_str:
-                    return int(frequency_str.split()[1])
-                elif "second" in frequency_str:
-                    return int(frequency_str.split()[1]) / 60
-                elif "hour" in frequency_str:
-                    return int(frequency_str.split()[1]) * 60
-        return None
-
     def send_events_to_axiom(self, events):
         for event in events:
             if '_time' in event and isinstance(event['_time'], datetime):
