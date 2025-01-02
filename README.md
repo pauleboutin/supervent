@@ -1,3 +1,4 @@
+working basic version: https://github.com/pauleboutin/supervent/tree/6dc1f4ae519467965b46db9930379a1ae2c02cae
 # Realistic Log Generator
 
 A configurable, pattern-aware log generator that creates interconnected events across multiple system components. Designed to simulate realistic network ecosystems for demo, testing and training purposes.
