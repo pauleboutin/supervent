@@ -35,7 +35,7 @@ def setup_logging(args):
 
 # Load environment variables from .env file
 
-DEFAULT_BATCH_SIZE = 1000
+DEFAULT_BATCH_SIZE = 5000
 DEFAULT_OUTPUT_FILE = sys.stdout
 
 def load_config(file_path):
@@ -50,10 +50,6 @@ async def main():
         args = parse_args()
         setup_logging(args)
         
-        logging.debug("Loading configuration...")
-        config = load_config(args.config)
-        logging.debug("Configuration loaded successfully.")
-
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")

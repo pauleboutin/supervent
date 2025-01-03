@@ -1,3 +1,8 @@
+# basic 3-tier architecture with dependencies between web server, app server, and database server
+# web server generates access logs
+# app server generates info logs after web server access events
+# database server generates query logs after app server info events
+
 start_time: "2024-12-09T10:00:00Z"
 end_time: "2024-12-09T11:00:00Z"
 
