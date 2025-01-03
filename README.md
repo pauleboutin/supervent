@@ -1,7 +1,9 @@
-working basic version: https://github.com/pauleboutin/supervent/tree/6dc1f4ae519467965b46db9930379a1ae2c02cae
 # Realistic Log Generator
 
-A configurable, pattern-aware log generator that creates interconnected events across multiple system components. Designed to simulate realistic network ecosystems for demo, testing and training purposes.
+A configurable, pattern-aware log generator that creates interconnected events across multiple system components. 
+- Designed to simulate realistic network ecosystems.
+- Easily flexible and extensible — it's an agnostic Python program with all source, event and behavior specifics configured via YAML rather than hardcoded.
+- Performant: the current build will generate 1 million synthetic HTTP server logs to a JSON file in 90 seconds, or load them into Axiom in 4 minutes, from my iMac on my home Wi-Fi.
 
 The current implementation, branch 3.0, generates realistic but semantically meaningless events. It's one thing to generate syntactically valid logs, but quite another to generate logs that tell a coherent story about system behavior. Real system events have important patterns and correlations that this simplified version doesn't capture, such as:
 
@@ -17,8 +19,13 @@ The current implementation, branch 3.0, generates realistic but semantically mea
 - Cache hit/miss patterns
 - Fields with very high cardinality
 
-We ("we" is me and several LLM collaborators) are patiently but steadily adding support for these aspects of log simulation and expect to be done by the end of January 2025.
+I'm patiently but steadily adding support for these aspects of log simulation and expect to be done by the end of January 2025.
 
+## Why?
+- Sharing or publishing real event logs, even logs that are theoretically anonymized, risks exposing confidential information. Or at least causing worries about it.
+- Obvious security use case: Create a large, historical dataset that has an attack hiding in it, deliberately configured.
+- Public demos and sandboxes for log management tools (I come from Splunk and Axiom.)
+- Test data that includes specific patterns, anomalies, high cardinality, correlations and other aspects beyond format and volume. 
 
 
 ## Features
