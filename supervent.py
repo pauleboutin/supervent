@@ -14,7 +14,6 @@ import time
 import math
 import argparse
 from pathlib import Path
-<<<<<<< HEAD
 import logging
 import asyncio
 from itertools import islice
@@ -38,33 +37,10 @@ def setup_logging(args):
 
 DEFAULT_BATCH_SIZE = 1000
 DEFAULT_OUTPUT_FILE = sys.stdout
-=======
-from concurrent.futures import ThreadPoolExecutor
-import logging
-
-
-# Load environment variables from .env file
-load_dotenv()
-AXIOM_API_TOKEN = os.getenv('AXIOM_API_TOKEN')
-AXIOM_DATASET = os.getenv('AXIOM_DATASET')
-AXIOM_API_URL = "https://api.axiom.co/v1/datasets/{AXIOM_DATASET}/ingest"
-DEFAULT_BATCH_SIZE = 1000
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
 def load_config(file_path):
     with open(file_path, 'r') as f:
         return yaml.safe_load(f)
-    
-def setup_logging(args):
-    if args.log_level == 'NONE':
-        logging.basicConfig(level=logging.CRITICAL + 1)
-    else:
-        logging.basicConfig(
-            level=getattr(logging, args.log_level),
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
-
-
 
 async def main():
     event_count = 0
@@ -77,13 +53,10 @@ async def main():
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")
-<<<<<<< HEAD
 
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")
-=======
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
         # Configure output based on args
         if args.output == 'axiom':
@@ -123,11 +96,7 @@ async def main():
         event_frequencies = config.get('event_frequencies', {})
         logging.debug("Event frequencies loaded:", event_frequencies)
 
-<<<<<<< HEAD
         generator = EventGenerator(event_frequencies, config, output_type=args.output, batch_size=args.batch_size, output_file=args.file)
-=======
-        generator = EventGenerator(event_frequencies, config, output_type=args.output, batch_size=args.batch_size)
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         logging.debug("Event generator created.")
 
         signal.signal(signal.SIGINT, generator.signal_handler)
@@ -143,123 +112,15 @@ async def main():
             PG_CONNECTION.close()
 
     except Exception as e:
-<<<<<<< HEAD
         logging.critical("An error occurred:", e)
         logging.critical(f"Generated {event_count} events before error.")
-=======
-        logging.error("An error occurred:", e)
-        if 'generator' in locals():
-            logging.error(f"Generated {generator.total_events_sent} events before error.")
-        else:
-            logging.error("Error occurred before event generation started.")        
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         if args.output == 'postgres' and 'PG_CONNECTION' in globals():
             PG_CONNECTION.close()
         raise
 
 
-class TimePattern:
-    def __init__(self, pattern_str):
-        self.pattern_str = pattern_str
-        
-        # Handle different pattern formats
-        if '/' in pattern_str:
-            # Date/time range format: "2024-12-01/2024-12-25"
-            self.pattern_type = "datetime_range"
-            self.parse_date_range(pattern_str)
-        elif pattern_str in ('weekday', 'weekend', '24/7'):
-            # Legacy patterns
-            self.pattern_type = "legacy"
-            self.parse_legacy_pattern(pattern_str)
-        else:
-            # Complex patterns like "weekday 9-17"
-            self.pattern_type = "composite"
-            self.parse_composite_pattern(pattern_str)
-
-    def parse_date_range(self, pattern):
-        start_str, end_str = pattern.split('/')
-        try:
-            # Handle both date-only and datetime formats
-            self.start = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            self.end = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
-        except ValueError as e:
-            raise ValueError(f"Invalid datetime format in pattern '{pattern}': {e}")
-
-    def parse_legacy_pattern(self, pattern):
-        self.pattern = pattern
-        # These will be evaluated at match time
-
-    def parse_composite_pattern(self, pattern):
-        # Handle patterns like "weekday 9-17"
-        parts = pattern.split()
-        self.day_pattern = parts[0]  # 'weekday', 'weekend'
-        if len(parts) > 1:
-            start_hour, end_hour = map(int, parts[1].split('-'))
-            self.hour_range = (start_hour, end_hour)
-        else:
-            self.hour_range = None
-
-    def matches(self, timestamp):
-        if self.pattern_type == "datetime_range":
-            return self.start <= timestamp <= self.end
-        
-        elif self.pattern_type == "legacy":
-            if self.pattern == "weekday":
-                return timestamp.weekday() < 5
-            elif self.pattern == "weekend":
-                return timestamp.weekday() >= 5
-            elif self.pattern == "24/7":
-                return True
-                
-        elif self.pattern_type == "composite":
-            # Check day pattern
-            day_matches = False
-            if self.day_pattern == "weekday":
-                day_matches = timestamp.weekday() < 5
-            elif self.day_pattern == "weekend":
-                day_matches = timestamp.weekday() >= 5
-            
-            # Check hour range if specified
-            if self.hour_range and day_matches:
-                start_hour, end_hour = self.hour_range
-                return day_matches and start_hour <= timestamp.hour < end_hour
-            
-            return day_matches
-
-        return False
-
-class VolumeScheduler:
-    def __init__(self, volume_configs):
-        self.schedules = []
-        for config in volume_configs:
-            self.schedules.append({
-                'pattern': TimePattern(config['pattern']),
-                'count': config['count'],
-                'distribution': config['distribution'],
-                'details': config.get('details', {})
-            })
-
-    def get_rate_for_timestamp(self, timestamp):
-        for schedule in self.schedules:
-            if schedule['pattern'].matches(timestamp):
-                base_rate = schedule['details'].get('events_per_minute', 60)
-                
-                # Apply time-based modifiers
-                if 'peak_hours' in schedule['details']:
-                    peak_start, peak_end = map(int, schedule['details']['peak_hours'].split('-'))
-                    if peak_start <= timestamp.hour < peak_end:
-                        base_rate *= schedule['details'].get('peak_multiplier', 1.5)
-                
-                return base_rate
-        return 0  # No matching pattern found
-
-
 class EventGenerator:
-<<<<<<< HEAD
     def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE, output_file=DEFAULT_OUTPUT_FILE):
-=======
-    def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE):
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         self.event_frequencies = event_frequencies
         self.config = config
         self.dependencies = config.get('dependencies', [])
@@ -270,25 +131,8 @@ class EventGenerator:
         self.response_time_max = config['response_time']['max']
         self.output_type = output_type
         self.batch_size = batch_size
-<<<<<<< HEAD
         self.output_file = output_file
-=======
-        self.timestamp_cache = {}
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
-   
-        # Initialize volume scheduler for each source
-        self.volume_schedulers = {}
-        for source, source_config in config['sources'].items():
-            if 'volume' in source_config:
-                self.volume_schedulers[source] = VolumeScheduler(source_config['volume'])
-
-        # Initialize client IPs cache (only once)
-
-        self.client_ips = [
-            f"10.{random.randint(0, 255)}.{random.randint(0, 255)}.{random.randint(0, 255)}"
-            for _ in range(1000)
-        ]
 
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
@@ -296,16 +140,11 @@ class EventGenerator:
         logging.debug(f"\nExiting gracefully... Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
         sys.exit(0)
 
-<<<<<<< HEAD
     async def generate_events(self, start_time, end_time):
-=======
-    def generate_events(self, start_time, end_time):
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         logging.debug("Starting event generation...")
         self.start_generation_time = time.time()
         for source, event in self.config['sources'].items():
             logging.debug(f"Generating events for source: {source}")
-<<<<<<< HEAD
             await self.generate_source_events(source, event, start_time, end_time)
         logging.debug("Event generation completed.")
 
@@ -322,60 +161,15 @@ class EventGenerator:
             distribution = volume['distribution']
             details = volume['details']
             logging.debug(f"Generating {count} events with {distribution} distribution for pattern: {pattern}")
-=======
-            self.generate_source_events(source, event, start_time, end_time)
-        logging.debug("Event generation completed.")
 
-    def generate_source_events(self, source, event, start_time, end_time):
-        logging.debug(f"Generating source events for: {source}")
-        event_types = event['event_types']
-        source_description = event['description']
+            if not isinstance(count, int):
+                raise ValueError(f"Expected count to be an integer, got {type(count)} instead.")
 
-        # Get or create volume scheduler for this source
-        scheduler = self.volume_schedulers.get(source)
-        if not scheduler:
-            logging.debug(f"No volume scheduler found for {source}, creating from volume parameters")
-            scheduler = VolumeScheduler(event['volume'])
-            self.volume_schedulers[source] = scheduler
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
-
-        # Calculate time intervals (e.g., every minute)
-        current_time = start_time
-        interval = timedelta(minutes=1)  # Default to 1-minute intervals
-
-        while current_time < end_time:
-            # Get the event rate for this timestamp
-            events_per_minute = scheduler.get_rate_for_timestamp(current_time)
-            
-            if events_per_minute > 0:
-                # Create time period for this interval
-                time_period = {
-                    'start': current_time,
-                    'end': min(current_time + interval, end_time)
-                }
-
-                # Create events for this interval
-                self.create_events(
-                    count=int(events_per_minute),
-                    distribution='random',  # or use configured distribution
-                    time_period=time_period,
-                    source_description=source_description,
-                    event_types=event_types,
-                    source=source
-                )
-
-            current_time += interval
-
-        logging.debug(f"Completed event generation for source: {source}")
-
-<<<<<<< HEAD
             if pattern:
                 await self.generate_pattern_events(pattern, count, distribution, start_time, end_time, source_description, event_types, source)
             else:
                 time_period = volume['time_period']
                 await self.create_events(count, distribution, time_period, source_description, event_types, source)
-=======
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
     async def generate_pattern_events(self, pattern, count, distribution, start_time, end_time, source_description, event_types, source):
         if pattern == "weekday":
@@ -440,7 +234,6 @@ class EventGenerator:
         # Get the source configuration and description
         source_config = self.config['sources'].get(source, {})
         source_description = source_config.get('description', source)
-        timestamp_format = source_config.get('timestamp_format', '%Y-%m-%dT%H:%M:%S.%fZ')  # default ISO format
 
         for _ in range(count):
             request_id = str(uuid.uuid4())
@@ -463,7 +256,7 @@ class EventGenerator:
             message_format = event_type['format']
             event_type_name = event_type['type']
 
-            formatted_timestamp = self.format_timestamp(fake_timestamp, timestamp_format)
+            formatted_timestamp = fake_timestamp.isoformat() + "Z"
 
             details = {
                 'timestamp': formatted_timestamp,
@@ -509,10 +302,7 @@ class EventGenerator:
 
             # Send batch of events when reaching batch size
             if len(events) >= self.batch_size:
-<<<<<<< HEAD
                 self.clean_event_batch(events)
-=======
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
                 if self.output_type == 'postgres':
                     await self.send_events_to_postgres(events)
                 elif self.output_type == 'file':
@@ -615,19 +405,7 @@ class EventGenerator:
         
         return dependent_event
 
-    def format_timestamp(self, timestamp, format_string):
-        cache_key = (timestamp, format_string)
-        if cache_key in self.timestamp_cache:
-            return self.timestamp_cache[cache_key]
-            
-        if timestamp.tzinfo is not None:
-            timestamp = timestamp.replace(tzinfo=None)
 
-        # Handle microseconds specially since strftime doesn't support milliseconds directly
-        format_string = format_string.replace('%f', f'{timestamp.microsecond:06d}'[:3])
-        result = timestamp.strftime(format_string)
-        self.timestamp_cache[cache_key] = result
-        return result
 
     def format_message(self, message, details):
         formatted_details = {}
@@ -657,15 +435,9 @@ class EventGenerator:
             logging.debug(f"Parsed time period: start_time={start_time}, end_time={end_time}")
             return start_time, end_time
         except Exception as e:
-<<<<<<< HEAD
             logging.critical(f"Error parsing time period: {e}")
             logging.critical(f"Time period type: {type(time_period)}")
             logging.critical(f"Time period content: {time_period}")
-=======
-            logging.debug(f"Error parsing time period: {e}")
-            logging.debug(f"Time period type: {type(time_period)}")
-            logging.debug(f"Time period content: {time_period}")
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
             raise
 
 
@@ -675,7 +447,6 @@ class EventGenerator:
             if '_time' in event and isinstance(event['_time'], datetime):
                 event['_time'] = event['_time'].isoformat()
 
-<<<<<<< HEAD
         # Process events in chunks
         async with aiohttp.ClientSession() as session:
             for chunk in self.chunk_list(events, self.batch_size):
@@ -692,38 +463,8 @@ class EventGenerator:
                     else:
                         self.total_events_sent += len(chunk)
                         logging.debug(f"Successfully sent {len(chunk)} events to Axiom.")
-=======
-        # Split events into chunks of 1000
-        chunk_size = 1000
-        chunks = [events[i:i + chunk_size] for i in range(0, len(events), chunk_size)]
-        
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
-            for chunk in chunks:
-                futures.append(executor.submit(self._send_chunk_to_axiom, chunk))
-            
-            for future in futures:
-                future.result()  # Wait for all requests to complete
 
-        events.clear()  # Clear the main events list after all chunks are sent
-
-
-    def _send_chunk_to_axiom(self, chunk):
-        response = requests.post(AXIOM_API_URL, headers={
-            "Authorization": f"Bearer {AXIOM_API_TOKEN}",
-            "Content-Type": "application/json"
-        }, json=chunk)
-        
-        if response.status_code != 200:
-            logging.error(f"Failed to send events to Axiom: {response.text}")
-        else:
-            self.total_events_sent += len(chunk)
-            logging.info(f"Successfully sent {len(chunk)} events to Axiom.")
-        
-        chunk.clear()  # Clear the chunk after sending
- 
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
-
+        events.clear()
 
     def chunk_list(self, lst, n):
         """Yield successive n-sized chunks from lst."""
@@ -746,11 +487,7 @@ class EventGenerator:
                     ))
             PG_CONNECTION.commit()
             self.total_events_sent += len(events)  # Increment counter
-<<<<<<< HEAD
             logging.debug(f"Successfully sent {len(events)} events to PostgreSQL.")
-=======
-            logging.info(f"Successfully sent {len(events)} events to PostgreSQL.")
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
             events.clear()
 
     async def send_events_to_file(self, events):
@@ -806,18 +543,6 @@ def parse_args():
         description='Generate realistic log events with configurable patterns and dependencies'
     )
     
-    parser.add_argument('--log-level', 
-                       default='INFO', 
-                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
-                       help="Set the logging level")
-
-    parser.add_argument(
-        '-b', '--batch-size',
-        type=int,
-        default=DEFAULT_BATCH_SIZE,
-        help=f'Number of events to send in each batch (default: {DEFAULT_BATCH_SIZE})'
-    )
-
     # Config file argument
     parser.add_argument(
         '-c', '--config',
@@ -857,7 +582,6 @@ def parse_args():
     axiom_group = parser.add_argument_group('Axiom options')
 
     axiom_group.add_argument(
-<<<<<<< HEAD
         '-d', '--dataset',
         type=str,
         default=os.environ.get('AXIOM_DATASET'),
@@ -865,20 +589,11 @@ def parse_args():
     )
 
     axiom_group.add_argument(
-=======
->>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         '-t', '--token',
         type=str,
         default=os.environ.get('AXIOM_API_TOKEN'),
         help='Axiom API token (can also be set via AXIOM_API_TOKEN environment variable)'
     )
-    axiom_group.add_argument(
-        '-d', '--dataset',
-        type=str,
-        default=os.environ.get('AXIOM_DATASET'),
-        help='Axiom dataset name to ingest events (can also be set via AXIOM_DATASET environment variable)'
-    )
-
 
     # PostgreSQL arguments
     pg_group = parser.add_argument_group('PostgreSQL options')
@@ -928,9 +643,9 @@ def parse_args():
     # Validate output-specific requirements
     if args.output == 'axiom':
         if not args.dataset:
-            parser.error("Axiom dataset name must be provided either via --dataset argument or AXIOM_DATASET environment variable")
+            parser.error("Axiom dataset name (-d/--dataset) is required when using axiom output")
         if not args.token:
-            parser.error("Axiom API token must be provided either via --token argument or AXIOM_API_TOKEN environment variable")
+            parser.error("Axiom API token must be provided either via --token argument or AXIOM_TOKEN environment variable")
     elif args.output == 'postgres':
         required_pg_args = {
             'pg_db': 'POSTGRES_DB',
