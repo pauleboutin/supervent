@@ -14,6 +14,31 @@ import time
 import math
 import argparse
 from pathlib import Path
+<<<<<<< HEAD
+import logging
+import asyncio
+from itertools import islice
+import aiohttp
+import psycopg2
+from psycopg2.extras import Json
+import aiofiles
+
+def setup_logging(args):
+    if args.log_level == 'NONE':
+        logging.basicConfig(level=logging.CRITICAL + 1)
+    else:
+        logging.basicConfig(
+            level=getattr(logging, args.log_level),
+            # format='%(asctime)s - %(levelname)s - %(message)s'
+            format='%(message)s',
+            handlers=[logging.StreamHandler(sys.stdout)] # Log to stdout
+        )
+
+# Load environment variables from .env file
+
+DEFAULT_BATCH_SIZE = 1000
+DEFAULT_OUTPUT_FILE = sys.stdout
+=======
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
@@ -24,6 +49,7 @@ AXIOM_API_TOKEN = os.getenv('AXIOM_API_TOKEN')
 AXIOM_DATASET = os.getenv('AXIOM_DATASET')
 AXIOM_API_URL = "https://api.axiom.co/v1/datasets/{AXIOM_DATASET}/ingest"
 DEFAULT_BATCH_SIZE = 1000
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
 def load_config(file_path):
     with open(file_path, 'r') as f:
@@ -40,7 +66,10 @@ def setup_logging(args):
 
 
 
-def main():
+async def main():
+    event_count = 0
+    start_generation_time = time.time()
+
     try:
         args = parse_args()
         setup_logging(args)
@@ -48,11 +77,19 @@ def main():
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")
+<<<<<<< HEAD
+
+        logging.debug("Loading configuration...")
+        config = load_config(args.config)
+        logging.debug("Configuration loaded successfully.")
+=======
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
         # Configure output based on args
         if args.output == 'axiom':
             global AXIOM_API_TOKEN, AXIOM_API_URL
             AXIOM_API_TOKEN = args.token
+            AXIOM_DATASET = args.dataset
             AXIOM_API_URL = f"https://api.axiom.co/v1/datasets/{args.dataset}/ingest"
         elif args.output == 'postgres':
             # Setup PostgreSQL connection
@@ -86,16 +123,17 @@ def main():
         event_frequencies = config.get('event_frequencies', {})
         logging.debug("Event frequencies loaded:", event_frequencies)
 
+<<<<<<< HEAD
+        generator = EventGenerator(event_frequencies, config, output_type=args.output, batch_size=args.batch_size, output_file=args.file)
+=======
         generator = EventGenerator(event_frequencies, config, output_type=args.output, batch_size=args.batch_size)
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         logging.debug("Event generator created.")
 
         signal.signal(signal.SIGINT, generator.signal_handler)
         signal.signal(signal.SIGTERM, generator.signal_handler)
 
-        event_count = 0
-        start_generation_time = time.time()
-
-        generator.generate_events(start_time, end_time)
+        await generator.generate_events(start_time, end_time)
         event_count += len(generator.processed_events)
 
         total_time = time.time() - start_generation_time
@@ -105,11 +143,16 @@ def main():
             PG_CONNECTION.close()
 
     except Exception as e:
+<<<<<<< HEAD
+        logging.critical("An error occurred:", e)
+        logging.critical(f"Generated {event_count} events before error.")
+=======
         logging.error("An error occurred:", e)
         if 'generator' in locals():
             logging.error(f"Generated {generator.total_events_sent} events before error.")
         else:
             logging.error("Error occurred before event generation started.")        
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         if args.output == 'postgres' and 'PG_CONNECTION' in globals():
             PG_CONNECTION.close()
         raise
@@ -212,7 +255,11 @@ class VolumeScheduler:
 
 
 class EventGenerator:
+<<<<<<< HEAD
+    def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE, output_file=DEFAULT_OUTPUT_FILE):
+=======
     def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE):
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         self.event_frequencies = event_frequencies
         self.config = config
         self.dependencies = config.get('dependencies', [])
@@ -223,7 +270,11 @@ class EventGenerator:
         self.response_time_max = config['response_time']['max']
         self.output_type = output_type
         self.batch_size = batch_size
+<<<<<<< HEAD
+        self.output_file = output_file
+=======
         self.timestamp_cache = {}
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
    
         # Initialize volume scheduler for each source
@@ -245,11 +296,33 @@ class EventGenerator:
         logging.debug(f"\nExiting gracefully... Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
         sys.exit(0)
 
+<<<<<<< HEAD
+    async def generate_events(self, start_time, end_time):
+=======
     def generate_events(self, start_time, end_time):
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         logging.debug("Starting event generation...")
         self.start_generation_time = time.time()
         for source, event in self.config['sources'].items():
             logging.debug(f"Generating events for source: {source}")
+<<<<<<< HEAD
+            await self.generate_source_events(source, event, start_time, end_time)
+        logging.debug("Event generation completed.")
+
+    async def generate_source_events(self, source, event, start_time, end_time):
+        logging.debug(f"Generating source events for: {source}")
+        parameters = event['volume']
+        event_types = event['event_types']
+        source_description = event['description']
+        logging.debug(f"Parameters for {source}: {parameters}")
+
+        for volume in parameters:
+            pattern = volume.get('pattern')
+            count = int(volume.get('count', 0))
+            distribution = volume['distribution']
+            details = volume['details']
+            logging.debug(f"Generating {count} events with {distribution} distribution for pattern: {pattern}")
+=======
             self.generate_source_events(source, event, start_time, end_time)
         logging.debug("Event generation completed.")
 
@@ -264,6 +337,7 @@ class EventGenerator:
             logging.debug(f"No volume scheduler found for {source}, creating from volume parameters")
             scheduler = VolumeScheduler(event['volume'])
             self.volume_schedulers[source] = scheduler
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
         # Calculate time intervals (e.g., every minute)
         current_time = start_time
@@ -294,64 +368,72 @@ class EventGenerator:
 
         logging.debug(f"Completed event generation for source: {source}")
 
+<<<<<<< HEAD
+            if pattern:
+                await self.generate_pattern_events(pattern, count, distribution, start_time, end_time, source_description, event_types, source)
+            else:
+                time_period = volume['time_period']
+                await self.create_events(count, distribution, time_period, source_description, event_types, source)
+=======
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
-    def generate_pattern_events(self, pattern, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_pattern_events(self, pattern, count, distribution, start_time, end_time, source_description, event_types, source):
         if pattern == "weekday":
-            self.generate_weekday_events(count, distribution, start_time, end_time, source_description, event_types, source)
+            await self.generate_weekday_events(count, distribution, start_time, end_time, source_description, event_types, source)
         elif pattern == "weekend":
-            self.generate_weekend_events(count, distribution, start_time, end_time, source_description, event_types, source)
+            await self.generate_weekend_events(count, distribution, start_time, end_time, source_description, event_types, source)
         elif pattern == "24/7":
-            self.generate_24_7_events(count, distribution, start_time, end_time, source_description, event_types, source)
+            await self.generate_24_7_events(count, distribution, start_time, end_time, source_description, event_types, source)
         elif pattern == "sine_wave":
-            self.generate_sine_wave_events(count, distribution, start_time, end_time, source_description, event_types, source)
+            await self.generate_sine_wave_events(count, distribution, start_time, end_time, source_description, event_types, source)
         elif pattern == "linear_increase":
-            self.generate_linear_increase_events(count, distribution, start_time, end_time, source_description, event_types, source)
+            await self.generate_linear_increase_events(count, distribution, start_time, end_time, source_description, event_types, source)
         else:
             raise ValueError(f"Unsupported pattern type: {pattern}")
 
-    def generate_weekday_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_weekday_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         current_time = start_time
         while current_time < end_time:
             if current_time.weekday() < 5:
-                self.create_events(count // 5, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
+                await self.create_events(count // 5, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
             current_time += timedelta(days=1)
 
-    def generate_weekend_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_weekend_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         current_time = start_time
         while current_time < end_time:
             if current_time.weekday() >= 5:
-                self.create_events(count // 2, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
+                await self.create_events(count // 2, distribution, {'start': current_time.isoformat(), 'end': (current_time + timedelta(days=1)).isoformat()}, source_description, event_types, source)
             current_time += timedelta(days=1)
 
-    def generate_24_7_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_24_7_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         total_days = (end_time - start_time).days + 1
         time_period = {
             'start': start_time.isoformat(),  # Convert to ISO format string
             'end': end_time.isoformat()       # Convert to ISO format string
         }
-        self.create_events(count // total_days, distribution, time_period, source_description, event_types, source)
+        await self.create_events(count // total_days, distribution, time_period, source_description, event_types, source)
 
-    def generate_sine_wave_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_sine_wave_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         total_seconds = (end_time - start_time).total_seconds()
         for i in range(count):
             t = i / count * total_seconds
             amplitude = (1 + math.sin(2 * math.pi * t / total_seconds)) / 2
             event_time = start_time + timedelta(seconds=t)
-            self.create_events(int(amplitude * count), distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
+            await self.create_events(int(amplitude * count), distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
 
-    def generate_linear_increase_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
+    async def generate_linear_increase_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         total_seconds = (end_time - start_time).total_seconds()
         for i in range(count):
             t = i / count * total_seconds
             event_time = start_time + timedelta(seconds=t)
-            self.create_events(i + 1, distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
+            await self.create_events(i + 1, distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
 
     def extract_placeholders(self, format_string):
         """Extract all placeholder names from a format string."""
         import re
         return set(re.findall(r'{([^}]+)}', format_string))
 
-    def create_events(self, count, distribution, time_period, source_description, event_types, source):
+    async def create_events(self, count, distribution, time_period, source_description, event_types, source):
         events = []
         start_time, end_time = self.parse_time_period(time_period)
 
@@ -427,19 +509,33 @@ class EventGenerator:
 
             # Send batch of events when reaching batch size
             if len(events) >= self.batch_size:
+<<<<<<< HEAD
+                self.clean_event_batch(events)
+=======
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
                 if self.output_type == 'postgres':
-                    self.send_events_to_postgres(events)
+                    await self.send_events_to_postgres(events)
+                elif self.output_type == 'file':
+                    await self.send_events_to_file(events)
                 else:  # default to axiom
-                    self.send_events_to_axiom(events)
+                    await self.send_events_to_axiom(events)
                 events = []
 
         # Send remaining events
         if events:
+            self.clean_event_batch(events)
             if self.output_type == 'postgres':
-                self.send_events_to_postgres(events)
+                await self.send_events_to_postgres(events)
+            elif self.output_type == 'file':
+                await self.send_events_to_file(events)
             else:  # default to axiom
-                self.send_events_to_axiom(events)
-                
+                await self.send_events_to_axiom(events)
+
+    def clean_event_batch(self, events):
+        """Clean a batch of events by removing source_type and converting timestamps."""
+        for event in events:
+            event.pop('source_type', None)  # Remove source_type if it exists
+                    
     def chain_events(self, event, events):
         event_key = (event['source_type'], event['_time'], event['event_type'])
         if event_key in self.processed_events:
@@ -561,17 +657,42 @@ class EventGenerator:
             logging.debug(f"Parsed time period: start_time={start_time}, end_time={end_time}")
             return start_time, end_time
         except Exception as e:
+<<<<<<< HEAD
+            logging.critical(f"Error parsing time period: {e}")
+            logging.critical(f"Time period type: {type(time_period)}")
+            logging.critical(f"Time period content: {time_period}")
+=======
             logging.debug(f"Error parsing time period: {e}")
             logging.debug(f"Time period type: {type(time_period)}")
             logging.debug(f"Time period content: {time_period}")
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
             raise
 
 
-    def send_events_to_axiom(self, events):
+    async def send_events_to_axiom(self, events):
+        # Convert datetime objects to ISO format
         for event in events:
             if '_time' in event and isinstance(event['_time'], datetime):
                 event['_time'] = event['_time'].isoformat()
 
+<<<<<<< HEAD
+        # Process events in chunks
+        async with aiohttp.ClientSession() as session:
+            for chunk in self.chunk_list(events, self.batch_size):
+                async with session.post(
+                    AXIOM_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {AXIOM_API_TOKEN}",
+                        "Content-Type": "application/json"
+                    },
+                    json=chunk
+                ) as response:
+                    if response.status != 200:
+                        logging.critical(f"Failed to send events to Axiom: {await response.text()}")
+                    else:
+                        self.total_events_sent += len(chunk)
+                        logging.debug(f"Successfully sent {len(chunk)} events to Axiom.")
+=======
         # Split events into chunks of 1000
         chunk_size = 1000
         chunks = [events[i:i + chunk_size] for i in range(0, len(events), chunk_size)]
@@ -601,9 +722,16 @@ class EventGenerator:
         
         chunk.clear()  # Clear the chunk after sending
  
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
 
 
-    def send_events_to_postgres(self, events):
+    def chunk_list(self, lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+
+    async def send_events_to_postgres(self, events):
             with PG_CONNECTION.cursor() as cur:
                 for event in events:
                     cur.execute("""
@@ -618,8 +746,33 @@ class EventGenerator:
                     ))
             PG_CONNECTION.commit()
             self.total_events_sent += len(events)  # Increment counter
+<<<<<<< HEAD
+            logging.debug(f"Successfully sent {len(events)} events to PostgreSQL.")
+=======
             logging.info(f"Successfully sent {len(events)} events to PostgreSQL.")
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
             events.clear()
+
+    async def send_events_to_file(self, events):
+        # Convert datetime objects to ISO format strings
+        for event in events:
+            if '_time' in event and isinstance(event['_time'], datetime):
+                event['_time'] = event['_time'].isoformat()
+    
+        if self.output_file == sys.stdout:  
+            # Write directly to stdout
+            for event in events:
+                print(json.dumps(event))
+        else:
+            # Write to specified file
+            async with aiofiles.open(self.output_file, 'a') as f:
+                for event in events:
+                    await f.write(json.dumps(event) + '\n')
+        
+        self.total_events_sent += len(events)
+        if self.output_file != '-':
+            logging.debug(f"Successfully wrote {len(events)} events to {self.output_file}")
+        events.clear()
 
 
 
@@ -672,18 +825,48 @@ def parse_args():
         default='config/config.yaml',
         help='Path to configuration YAML file (default: config/config.yaml)'
     )
-    
+ 
+    parser.add_argument('-l', '--log-level', 
+        default='info', 
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
+        help="Set the logging level",
+        type=str.upper)  # Convert input to uppercase
+
+    parser.add_argument(
+        '-b', '--batch-size',
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f'Number of events to send in each batch (default: {DEFAULT_BATCH_SIZE})'
+    )
+
     # Output type selection
     parser.add_argument(
-        '--output',
-        choices=['axiom', 'postgres'],
+        '-o','--output',
+        choices=['axiom', 'postgres', 'file'],
         default='axiom',
         help='Select output destination (default: axiom)'
     )
     
+    parser.add_argument(
+        '-f', '--file',
+        default=DEFAULT_OUTPUT_FILE,
+        help=f'Output file path (default: {DEFAULT_OUTPUT_FILE})'
+    )
+
     # Axiom arguments
     axiom_group = parser.add_argument_group('Axiom options')
+
     axiom_group.add_argument(
+<<<<<<< HEAD
+        '-d', '--dataset',
+        type=str,
+        default=os.environ.get('AXIOM_DATASET'),
+        help='Axiom dataset name to ingest events'
+    )
+
+    axiom_group.add_argument(
+=======
+>>>>>>> 835050f9d64369718f3fb1d20cd6b4cd782fb23b
         '-t', '--token',
         type=str,
         default=os.environ.get('AXIOM_API_TOKEN'),
@@ -762,5 +945,5 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
 

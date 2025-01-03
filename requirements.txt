@@ -1,5 +1,7 @@
-python-dotenv==1.0.1
-requests==2.31.0  # For making HTTP requests to Axiom's API
-psycopg2-binary>=2.9.9
-pyyaml
+aiohttp
+iofiles
 numpy
+psycopg2-binary>=2.9.9
+python-dotenv==1.0.1
+pyyaml
+requests==2.31.0  # For making HTTP requests to Axiom's API
