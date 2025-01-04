@@ -1,0 +1,80 @@
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+
+sources:
+  ec2:
+    description: "Amazon EC2 logs"
+    volume:
+      - pattern: "24/7"
+        count: 1000000
+        distribution: "gaussian"
+        details: {}
+    attributes:
+      timestamp:
+        type: "timestamp"
+        format: "%Y-%m-%dT%H:%M:%S.%LZ"
+      instance_id:
+        type: "choice"
+        values: ["i-0abc123def456"]
+      service:
+        type: "choice"
+        values: [
+          "kernel",
+          "systemd[1]",
+          "amazon-ssm-agent",
+          "cloud-init",
+          "dhclient[891]",
+          "sssd[1891]",
+          "auditd[823]",
+          "ntpd[1234]",
+          "dockerd[2345]",
+          "nginx[3456]",
+          "amazon-cloudwatch-agent[4567]",
+          "sshd[5678]",
+          "sudo",
+          "snapd[6789]",
+          "yum[8901]",
+          "cron[9012]"
+        ]
+      message:
+        type: "choice"
+        values: [
+          "[62476.902173] TCP: eth0: Out of socket memory",
+          "Started Daily apt download activities.",
+          "[62524.789234] Memory cgroup out of memory: Killed process 1234 (nginx) total-vm:1024KB, anon-rss:512KB",
+          "Successfully registered the instance with AWS SSM using Parameter Store",
+          "Cloud-init v. 21.4 running 'modules:final' at Thu, 03 Jan 2025 00:04:12 +0000",
+          "DHCPREQUEST on eth0 to 172.31.32.1 port 67",
+          "DHCPACK from 172.31.32.1",
+          "[62677.345678] EXT4-fs (xvda1): re-mounted. Opts: (null)",
+          "Starting System Security Services Daemon...",
+          "Starting up",
+          "[62795.123456] CPU3: Core temperature above threshold, cpu clock throttled",
+          "Audit daemon starting up",
+          "synchronized to 169.254.169.123, stratum 3",
+          "[62918.234567] docker0: port 1(veth1234) entered blocking state",
+          "Started Docker Application Container Engine.",
+          "Container 82a3b4c5d6e7 started",
+          "[63051.345678] TCP: request_sock_TCP: Possible SYN flooding on port 80. Sending cookies.",
+          "192.168.1.100 - - [03/Jan/2025:00:16:29 +0000] \"GET /api/v1/status HTTP/1.1\" 200 1234",
+          "Starting Daily apt upgrade and clean activities...",
+          "[63184.456789] High memory pressure - swapping active",
+          "Successfully sent metrics to CloudWatch",
+          "Accepted publickey for ec2-user from 203.0.113.45 port 49812",
+          "ec2-user : TTY=pts/0 ; PWD=/home/ec2-user ; USER=root ; COMMAND=/bin/systemctl restart nginx",
+          "[63317.567890] Process accounting resumed",
+          "autorefresh.go:475: auto-refresh: all snaps are up-to-date",
+          "[63450.678901] Out of memory: Kill process 7890 (java) score 901 or sacrifice child",
+          "Started Cleanup of Temporary Directories.",
+          "[63583.789012] IPv6: eth0: IPv6 duplicate address fe80::1234:5678:90ab:cdef detected!",
+          "Updated: amazon-ssm-agent-3.2.582.0-1.amzn2.x86_64",
+          "(CRON) INFO (Running @reboot jobs)"
+        ]
+    event_types:
+      - type: "ec2"
+        format: "{{timestamp}} {{instance_id}} {{service}}: {{message}}"
+        create_from_scratch: true

@@ -1,0 +1,95 @@
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+
+sources:
+  k8s:
+    description: "Kubernetes cluster logs"
+    volume:
+      - pattern: "24/7"
+        count: 1000000
+        distribution: "gaussian"
+        details: {}
+    attributes:
+      timestamp:
+        type: "timestamp"
+        format: "%Y-%m-%dT%H:%M:%S.%LZ"
+      stream:
+        type: "choice"
+        values: ["stdout", "stderr"]
+      type:
+        type: "choice"
+        values: ["F"]
+      pod:
+        type: "choice"
+        values: [
+          "[kube-system/aws-node-g4d2x]",
+          "[kube-system/coredns-7b5bcb98f-x9j2q]",
+          "[default/nginx-deployment-66b6c48dd5-abc12]",
+          "[monitoring/prometheus-operator-75d9b47cf4-def34]",
+          "[kube-system/kube-proxy-ip-10-0-12-123.ec2.internal]",
+          "[default/frontend-app-5f7b9db5c7-ghi56]",
+          "[ingress-nginx/ingress-nginx-controller-789bdf554f-jkl78]",
+          "[kube-system/cluster-autoscaler-6d4cb5f94d-mno90]",
+          "[default/redis-master-0]",
+          "[kube-system/aws-load-balancer-controller-55cd5c7bb4-pqr12]",
+          "[logging/elasticsearch-master-0]",
+          "[default/payment-service-66d7c48dd5-stu34]",
+          "[monitoring/grafana-5b4d589f68-vwx56]",
+          "[kube-system/external-dns-78b4dc6847-yza12]",
+          "[default/cache-deployment-7d6f8cf9b8-bcd34]",
+          "[kube-system/calico-node-efg56]",
+          "[default/order-processor-59d7b47cf4-hij78]",
+          "[monitoring/alertmanager-main-0]",
+          "[kube-system/aws-efs-csi-node-klm90]",
+          "[default/authentication-service-88f7c48dd5-nop12]",
+          "[logging/fluentd-ds-qrs34]",
+          "[kube-system/metrics-server-5d4cb5f94d-tuv56]",
+          "[default/rabbitmq-0]",
+          "[monitoring/blackbox-exporter-75b6c48dd5-wxy78]",
+          "[kube-system/velero-backup-abc90]",
+          "[default/api-gateway-66b6c48dd5-def12]",
+          "[security/vault-0]",
+          "[kube-system/cert-manager-5f7b9db5c7-ghi34]",
+          "[default/user-service-789bdf554f-jkl56]"
+        ]
+      message:
+        type: "choice"
+        values: [
+          "Starting AWS CNI plugin v1.12.1",
+          "Error while connecting to Kubernetes API server: connection refused",
+          "Successfully pulled image \"nginx:1.21.1\"",
+          "Level=info msg=\"Starting Prometheus Operator version 0.55.1\"",
+          "W0103 08:15:27.345123    1 proxier.go:485] Failed to load kernel module ip_vs_wrr",
+          "Connected to backend service at http://backend-service:8080",
+          "10.0.23.45 - \"GET /api/v1/users HTTP/1.1\" 200 1234 0.089",
+          "I0103 08:15:30.678901    1 scale_up.go:706] Scale-up: setting group DefaultNodeGroup size to 3",
+          "Ready to accept connections",
+          "E0103 08:15:32.890123    1 controller.go:217] error reconciling LoadBalancer: failed to ensure load balancer attributes",
+          "[2024-01-03T08:15:33,901][INFO ][o.e.c.m.MetadataCreateIndexService] [elasticsearch-master-0] [logs-2024.01.03] creating index",
+          "Starting payment processing service...",
+          "t=2024-01-03T08:15:35+0000 lvl=eror msg=\"Failed to connect to database\" error=\"dial tcp: lookup mysql-service: no such host\"",
+          "time=\"2024-01-03T08:15:36Z\" level=info msg=\"Updating DNS record\" record=\"api.example.com\" target=\"alb.amazonaws.com\"",
+          "Cache hit ratio: 87.5% (last 5 minutes)",
+          "2024-01-03 08:15:38.456 [ERROR][99] felix/ipsets.go 789: Failed to update ipsets",
+          "Processing order ID: ORD-2024-123456 - Status: COMPLETED",
+          "level=info ts=2024-01-03T08:15:40.678Z caller=coordinator.go:124 component=configuration msg=\"Completed loading of configuration file\"",
+          "E0103 08:15:41.789123    1 mount_linux.go:431] Failed to mount /dev/xvda1 at /var/lib/kubelet/pods: no such file or directory",
+          "JWT token validated for user: john.doe@example.com",
+          "2024-01-03 08:15:43 +0000 [info]: #0 following tail of /var/log/containers/*.log",
+          "E0103 08:15:44.012345    1 manager.go:111] unable to fully collect metrics: unable to fetch metrics from node ip-10-0-14-156.ec2.internal",
+          "2024-01-03 08:15:45.123 [info] <0.789.0> node rabbit@rabbitmq-0 up",
+          "level=info ts=2024-01-03T08:15:46.234Z caller=main.go:213 msg=\"Starting blackbox_exporter\" version=\"0.19.0\"",
+          "time=\"2024-01-03T08:15:47Z\" level=error msg=\"error backing up item\" backup=daily-backup error=\"timed out waiting for caches to sync\"",
+          "2024/01/03 08:15:48 [INFO] Handling request: POST /api/v2/transactions",
+          "2024-01-03T08:15:49.567Z [INFO]  core: successful mount: namespace= path=secret/ type=kv",
+          "I0103 08:15:50.678901    1 controller.go:129] cert-manager/controller/certificates \"msg\"=\"Certificate requires renewal\" \"resource_name\"=\"wildcard-cert\"",
+          "Database connection pool current size: 25, active: 18, idle: 7"
+        ]
+    event_types:
+      - type: "k8s"
+        format: "{{timestamp}} {{stream}} {{type}} {{pod}} {{message}}"
+        create_from_scratch: true
