@@ -34,8 +34,9 @@ def setup_logging(args):
         )
 
 # Load environment variables from .env file
+load_dotenv()
 
-DEFAULT_BATCH_SIZE = 5000
+DEFAULT_BATCH_SIZE = 100000
 DEFAULT_OUTPUT_FILE = sys.stdout
 
 def load_config(file_path):
@@ -109,7 +110,8 @@ async def main():
 
     except Exception as e:
         logging.critical("An error occurred:", e)
-        logging.critical(f"Generated {event_count} events before error.")
+        total_time = time.time() - start_generation_time
+        logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
         if args.output == 'postgres' and 'PG_CONNECTION' in globals():
             PG_CONNECTION.close()
         raise
@@ -133,7 +135,8 @@ class EventGenerator:
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
         total_time = time.time() - self.start_generation_time
-        logging.debug(f"\nExiting gracefully... Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
+        logging.info(f"Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
+        logging.shutdown()  # Ensure all logging is complete
         sys.exit(0)
 
     async def generate_events(self, start_time, end_time):
@@ -201,7 +204,7 @@ class EventGenerator:
             'start': start_time.isoformat(),  # Convert to ISO format string
             'end': end_time.isoformat()       # Convert to ISO format string
         }
-        await self.create_events(count // total_days, distribution, time_period, source_description, event_types, source)
+        await self.create_events(count, distribution, time_period, source_description, event_types, source)
 
     async def generate_sine_wave_events(self, count, distribution, start_time, end_time, source_description, event_types, source):
         total_seconds = (end_time - start_time).total_seconds()
@@ -323,37 +326,32 @@ class EventGenerator:
             event.pop('source_type', None)  # Remove source_type if it exists
                     
     def chain_events(self, event, events):
-        event_key = (event['source_type'], event['_time'], event['event_type'])
+        event_key = (
+            event['source_type'], 
+            event['attributes'].get('request_id'),
+            event['event_type']
+        )
         if event_key in self.processed_events:
             return
 
         self.processed_events.add(event_key)
-        logging.debug(f"Checking dependencies for event: {event}")
+        
+        # Process all dependencies for this event
         for dependency in self.dependencies:
-            trigger = dependency['trigger']
-            action = dependency['action']
-            logging.debug(f"Checking dependency: {dependency}")
-            logging.debug(f"Comparing event source: {event['source_type']} with trigger source: {trigger['source']}")
-            logging.debug(f"Comparing event type: {event['event_type']} with trigger type: {trigger['event_type']}")
-            
-            if event['source_type'] == trigger['source'] and event['event_type'] == trigger['event_type']:
-                logging.debug(f"Dependent event found for trigger: {trigger}")
-
-                if 'message' in trigger:
-                    logging.debug(f"Comparing event message: {event['message']} with trigger message: {trigger['message']}")
-                    if event['message'] != trigger['message']:
-                        logging.debug(f"Message does not match for trigger: {trigger}")
-                        continue
-
-                dependent_event = self.create_event(action, event)
-                logging.debug(f"Generating dependent event: {dependent_event}")
+            if (dependency['trigger']['source'] == event['source_type'] and
+                dependency['trigger']['event_type'] == event['event_type']):
+                
+                # Generate the dependent event
+                dependent_event = self.create_event(
+                    action=dependency['action'],
+                    parent_event=event
+                )
                 events.append(dependent_event)
-                logging.debug(f"Dependent event appended: {dependent_event}")
+                
+                # Recursively process dependencies for the new event
+                self.chain_events(dependent_event, events)  # recursive processing down the event chain
 
-                self.chain_events(dependent_event, events)
-            else:
-                logging.debug(f"No match for dependency: {dependency}")
-                logging.debug(f"Event source: {event['source']} != Trigger source: {trigger['source']} or Event type: {event['event_type']} != Trigger type: {trigger['event_type']}")
+
 
     def create_event(self, action, parent_event):
         """Create a dependent event with attributes specific to its source type."""
@@ -548,7 +546,7 @@ def parse_args():
     )
  
     parser.add_argument('-l', '--log-level', 
-        default='info', 
+        default='none', 
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NONE'],
         help="Set the logging level",
         type=str.upper)  # Convert input to uppercase
