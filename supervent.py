@@ -1,6 +1,5 @@
 import os
 import json
-import requests
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 import random
@@ -9,9 +8,7 @@ import numpy as np
 import signal
 import sys
 import uuid
-import ipaddress
 import time
-import math
 import argparse
 from pathlib import Path
 import logging
@@ -21,6 +18,7 @@ import aiohttp
 import psycopg2
 from psycopg2.extras import Json
 import aiofiles
+import math
 
 def setup_logging(args):
     if args.log_level == 'NONE':
@@ -136,7 +134,8 @@ class EventGenerator:
         """Handle the signal to exit gracefully."""
         total_time = time.time() - self.start_generation_time
         logging.info(f"Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
-        logging.shutdown()  # Ensure all logging is complete
+        if self.output_file != sys.stdout:
+            logging.shutdown()  # Ensure all logging is complete
         sys.exit(0)
 
     async def generate_events(self, start_time, end_time):
