@@ -4,14 +4,14 @@
 # database server generates query logs after app server info events
 
 start_time: "2024-12-09T10:00:00Z"
-end_time: "2024-12-29T11:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
 
 response_time:
   min: 100
   max: 5000
 
 acceptable_values:
-  method: ['GET', 'POST', 'PUT', 'DELETE']
+  # method: ['GET', 'POST', 'PUT', 'DELETE']
   path: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/health', '/metrics']
   protocol: ['HTTP/1.1', 'HTTP/2.0']
   status: [200, 201, 400, 401, 403, 404, 500]
@@ -65,7 +65,7 @@ sources:
         max: 5000
     volume:
       - pattern: "24/7"
-        count: 100000
+        count: 100
         distribution: "gaussian"
         details: {}
     event_types:
@@ -124,19 +124,3 @@ dependencies:
     action:
       source: "database_server"
       event_type: "query"
-
-event_frequencies:
-  normal_traffic:
-    web_server:
-      access:
-        frequency: "6000 per minute"
-    app_server:
-      info:
-        frequency: "3000 per minute"
-      error:
-        frequency: "1000 per minute"
-    database_server:
-      query:
-        frequency: "4500 per minute"
-      connection:
-        frequency: "10 per hour"
