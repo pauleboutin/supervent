@@ -29,6 +29,7 @@ acceptable_values:
 sources:
   web_server:
     description: "Apache HTTP Server 2.4.62"
+    dataset: "http"
     attributes:
       method:
         type: "choice"
@@ -65,9 +66,8 @@ sources:
         max: 5000
     volume:
       - pattern: "24/7"
-        count: 100
+        count: 500000
         distribution: "gaussian"
-        details: {}
     event_types:
       - type: "access"
         format: "{client_ip} - - [{timestamp}] \"{method} {path} {protocol}\" {status} {bytes} \"{referer}\" \"{user_agent}\""
@@ -75,6 +75,7 @@ sources:
 
   app_server:
     description: "Express.js 4.17.1"
+    dataset: "app"
     attributes:
       level:
         type: "choice"
@@ -94,6 +95,7 @@ sources:
 
   database_server:
     description: "MySQL 8.0.26"
+    dataset: "db"
     attributes:
       operation:
         type: "choice"

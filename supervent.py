@@ -32,7 +32,7 @@ def setup_logging(args):
         )
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv(override=True)
 
 DEFAULT_BATCH_SIZE = 100000
 DEFAULT_OUTPUT_FILE = sys.stdout
@@ -48,7 +48,8 @@ async def main():
     try:
         args = parse_args()
         setup_logging(args)
-        
+        logging.info(f"AXIOM_API_TOKEN from env: {os.environ.get('AXIOM_API_TOKEN', 'Not found')}")
+
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")
@@ -133,10 +134,15 @@ class EventGenerator:
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
         total_time = time.time() - self.start_generation_time
-        logging.info(f"Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.")
+        # Use sys.stderr.write instead of logging to avoid potential stdout conflicts
+        sys.stderr.write(f"\nGenerated {len(self.processed_events)} unique events in {total_time:.2f} seconds.\n")
+        sys.stderr.flush()
         if self.output_file != sys.stdout:
-            logging.shutdown()  # Ensure all logging is complete
-        sys.exit(0)
+            try:
+                    logging.shutdown()  # Ensure all logging is complete
+            except Exception:
+                pass
+        os._exit(0)
 
     async def generate_events(self, start_time, end_time):
         logging.debug("Starting event generation...")
@@ -157,7 +163,6 @@ class EventGenerator:
             pattern = volume.get('pattern')
             count = int(volume.get('count', 0))
             distribution = volume['distribution']
-            details = volume['details']
             logging.debug(f"Generating {count} events with {distribution} distribution for pattern: {pattern}")
 
             if not isinstance(count, int):
@@ -225,105 +230,6 @@ class EventGenerator:
         import re
         return set(re.findall(r'{([^}]+)}', format_string))
 
-    async def create_events(self, count, distribution, time_period, source_description, event_types, source):
-        events = []
-        start_time, end_time = self.parse_time_period(time_period)
-
-        # Get the source configuration and description
-        source_config = self.config['sources'].get(source, {})
-        source_description = source_config.get('description', source)
-
-        for _ in range(count):
-            request_id = str(uuid.uuid4())
-
-            if distribution == 'gaussian':
-                fake_timestamp = self.generate_normal_time(
-                    start_time + (end_time - start_time) / 2,
-                    (end_time - start_time) / 6
-                )
-            elif distribution == 'random':
-                fake_timestamp = self.random_time_between(start_time, end_time)
-            else:
-                raise ValueError(f"Unsupported distribution type: {distribution}")
-
-            event_type = random.choice(event_types)
-            
-            if not event_type.get('create_from_scratch', False):
-                continue
-
-            message_format = event_type['format']
-            event_type_name = event_type['type']
-
-            formatted_timestamp = fake_timestamp.isoformat() + "Z"
-
-            details = {
-                'timestamp': formatted_timestamp,
-                'request_id': request_id
-            }
-
-            # Get attribute definitions for this source
-            attribute_definitions = source_config.get('attributes', {})
-            
-            # Add source-specific attributes based on configuration
-            for attr_name, attr_config in attribute_definitions.items():
-                if attr_config.get('type') == 'choice' and attr_config.get('values'):
-                    details[attr_name] = random.choice(attr_config['values'])
-                elif attr_config.get('type') == 'integer':
-                    min_val = attr_config.get('min', 0)
-                    max_val = attr_config.get('max', 100)
-                    details[attr_name] = random.randint(min_val, max_val)
-                elif attr_config.get('type') == 'string':
-                    if attr_config.get('generator') == 'client_ip':
-                        details[attr_name] = self.generate_client_ip()
-
-            # Fill any remaining placeholders from acceptable_values
-            placeholders = self.extract_placeholders(message_format)
-            for key in placeholders:
-                if key not in details:
-                    if key in self.config.get('acceptable_values', {}):
-                        details[key] = random.choice(self.config['acceptable_values'][key])
-
-            formatted_message = self.format_message(message_format, details)
-
-            event = {
-                    'source': source_description,  # Keep the human-readable description for the event
-                    'source_type': source,        # Add this for dependency matching
-                    '_time': fake_timestamp,
-                    'message': formatted_message,
-                    'event_type': event_type_name,
-                    'attributes': details
-                }
-
-            events.append(event)
-
-            self.chain_events(event, events)
-
-            # Send batch of events when reaching batch size
-            if len(events) >= self.batch_size:
-                self.clean_event_batch(events)
-                if self.output_type == 'postgres':
-                    await self.send_events_to_postgres(events)
-                elif self.output_type == 'file':
-                    await self.send_events_to_file(events)
-                else:  # default to axiom
-                    await self.send_events_to_axiom(events)
-                events = []
-
-        # Send remaining events
-        if events:
-            self.clean_event_batch(events)
-            if self.output_type == 'postgres':
-                await self.send_events_to_postgres(events)
-            elif self.output_type == 'file':
-                await self.send_events_to_file(events)
-            else:  # default to axiom
-                await self.send_events_to_axiom(events)
-
-    def clean_event_batch(self, events):
-        """Clean a batch of events by removing source_type and converting timestamps."""
-        for event in events:
-            event.pop('source_type', None)  # Remove source_type if it exists
-                    
     def chain_events(self, event, events):
         event_key = (
             event['source_type'], 
@@ -340,28 +246,82 @@ class EventGenerator:
             if (dependency['trigger']['source'] == event['source_type'] and
                 dependency['trigger']['event_type'] == event['event_type']):
                 
-                # Generate the dependent event
+                # Generate the dependent event using the unified create_event
                 dependent_event = self.create_event(
-                    action=dependency['action'],
+                    source_name=dependency['action']['source'],
+                    event_type=dependency['action']['event_type'],
                     parent_event=event
                 )
                 events.append(dependent_event)
                 
                 # Recursively process dependencies for the new event
-                self.chain_events(dependent_event, events)  # recursive processing down the event chain
+                self.chain_events(dependent_event, events)
 
+    async def create_events(self, count, distribution, time_period, source_description, event_types, source):
+        events = []
+        start_time, end_time = self.parse_time_period(time_period)
 
+        for _ in range(count):
+            if distribution == 'gaussian':
+                fake_timestamp = self.generate_normal_time(
+                    start_time + (end_time - start_time) / 2,
+                    (end_time - start_time) / 6
+                )
+            elif distribution == 'random':
+                fake_timestamp = self.random_time_between(start_time, end_time)
+            else:
+                raise ValueError(f"Unsupported distribution type: {distribution}")
 
-    def create_event(self, action, parent_event):
-        """Create a dependent event with attributes specific to its source type."""
-        # Get the source configuration for the new event
-        source_config = self.config['sources'].get(action['source'], {})
-        source_description = source_config.get('description', action['source'])
+            event_type = random.choice(event_types)
+            
+            if not event_type.get('create_from_scratch', False):
+                continue
+
+            # Create the top-level event using the unified create_event
+            event = self.create_event(
+                source_name=source,
+                event_type=event_type['type'],
+                parent_event=None,
+                timestamp=fake_timestamp
+            )
+            events.append(event)
+            self.chain_events(event, events)
+
+            # Handle batching
+            if len(events) >= self.batch_size:
+                if self.output_type == 'postgres':
+                    await self.send_events_to_postgres(events)
+                elif self.output_type == 'file':
+                    await self.send_events_to_file(events)
+                else:  # default to axiom
+                    await self.send_events_to_axiom(events)
+                events = []
+
+        # Send remaining events
+        if events:
+            if self.output_type == 'postgres':
+                await self.send_events_to_postgres(events)
+            elif self.output_type == 'file':
+                await self.send_events_to_file(events)
+            else:  # default to axiom
+                await self.send_events_to_axiom(events)
+
+    def create_event(self, source_name, event_type, parent_event=None, timestamp=None):
+        """Unified event creation function for both top-level and dependent events."""
+        source_config = self.config['sources'].get(source_name, {})
+        source_description = source_config.get('description', source_name)
+        dataset = source_config.get('dataset', os.environ.get('AXIOM_DATASET'))
+
+        # Generate or inherit request_id
+        request_id = str(uuid.uuid4()) if parent_event is None else parent_event['attributes']['request_id']
+        
+        # Use provided timestamp or inherit from parent or use current time
+        event_time = timestamp or (parent_event['_time'] if parent_event else datetime.now(timezone.utc))
         
         # Start with basic attributes
         details = {
-            'timestamp': parent_event['attributes']['timestamp'],
-            'request_id': parent_event['attributes']['request_id']  # Maintain request correlation
+            'timestamp': event_time.isoformat() + "Z",
+            'request_id': request_id
         }
 
         # Add source-specific attributes based on configuration
@@ -376,27 +336,31 @@ class EventGenerator:
                 if attr_config.get('generator') == 'client_ip':
                     details[attr_name] = self.generate_client_ip()
 
-        # Get the event type configuration
+        # Get the event type configuration and format the message
         event_types = source_config.get('event_types', [])
-        event_type_config = next((et for et in event_types if et['type'] == action['event_type']), None)
+        event_type_config = next((et for et in event_types if et['type'] == event_type), None)
         
         if not event_type_config:
-            raise ValueError(f"Event type {action['event_type']} not found in source {action['source']}")
+            raise ValueError(f"Event type {event_type} not found in source {source_name}")
 
-        # Format the message using the source-specific attributes
         message_format = event_type_config['format']
         formatted_message = self.format_message(message_format, details)
 
-        dependent_event = {
-            'source': source_description,      # The human-readable description
-            'source_type': action['source'],   # The source identifier for dependency matching
-            '_time': parent_event['_time'],
-            'message': formatted_message,
-            'event_type': action['event_type'],
+        return {
+            'source': source_description,
+            'source_type': source_name,
+            'dataset': dataset,
+            '_time': event_time,
+            'event_type': event_type,
             'attributes': details
         }
-        
-        return dependent_event
+
+
+    def clean_event_batch(self, events):
+        """Clean a batch of events by removing source_type and converting timestamps."""
+        for event in events:
+            event.pop('source_type', None)  # Remove source_type if it exists
+                    
 
 
 
@@ -435,29 +399,47 @@ class EventGenerator:
 
 
     async def send_events_to_axiom(self, events):
-        # Convert datetime objects to ISO format
+        # First, group events by source_type (and thus by dataset)
+        events_by_source = {}
         for event in events:
-            if '_time' in event and isinstance(event['_time'], datetime):
-                event['_time'] = event['_time'].isoformat()
+            source_type = event.get('source_type')
+            if source_type not in events_by_source:
+                events_by_source[source_type] = []
+            events_by_source[source_type].append(event)
 
-        # Process events in chunks
+        # Process each source's events separately
         async with aiohttp.ClientSession() as session:
-            for chunk in self.chunk_list(events, self.batch_size):
-                async with session.post(
-                    AXIOM_API_URL,
-                    headers={
-                        "Authorization": f"Bearer {AXIOM_API_TOKEN}",
-                        "Content-Type": "application/json"
-                    },
-                    json=chunk
-                ) as response:
-                    if response.status != 200:
-                        logging.critical(f"Failed to send events to Axiom: {await response.text()}")
-                    else:
-                        self.total_events_sent += len(chunk)
-                        logging.debug(f"Successfully sent {len(chunk)} events to Axiom.")
+            for source_type, source_events in events_by_source.items():
+                # Get source configuration and dataset
+                source_config = self.config['sources'].get(source_type, {})
+                dataset = source_config.get('dataset', os.environ.get('AXIOM_DATASET'))
+                
+                # Convert datetime objects to ISO format
+                for event in source_events:
+                    if '_time' in event and isinstance(event['_time'], datetime):
+                        event['_time'] = event['_time'].isoformat()
+
+                # Process events in chunks
+                for chunk in self.chunk_list(source_events, self.batch_size):
+                    api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
+                    logging.debug(f"Sending events to dataset: {dataset} for source_type: {source_type}")
+                    
+                    async with session.post(
+                        api_url,
+                        headers={
+                            "Authorization": f"Bearer {AXIOM_API_TOKEN}",
+                            "Content-Type": "application/json"
+                        },
+                        json=chunk
+                    ) as response:
+                        if response.status != 200:
+                            logging.critical(f"Failed to send events to Axiom dataset {dataset}: {await response.text()}")
+                        else:
+                            self.total_events_sent += len(chunk)
+                            logging.debug(f"Successfully sent {len(chunk)} events to Axiom dataset {dataset}")
 
         events.clear()
+
 
     def chunk_list(self, lst, n):
         """Yield successive n-sized chunks from lst."""
