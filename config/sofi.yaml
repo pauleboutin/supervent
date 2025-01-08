@@ -1,0 +1,451 @@
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+  
+acceptable_values:
+  # method: ['GET', 'POST', 'PUT', 'DELETE']
+  path: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/health', '/metrics']
+  protocol: ['HTTP/1.1', 'HTTP/2.0']
+  status: [200, 201, 400, 401, 403, 404, 500]
+  user_agent: [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+  ]
+  referer: ['-', 'https://example.com', 'https://google.com']
+  level: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+  service: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+  operation: ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN']
+  table: ['users', 'orders', 'products', 'categories', 'payments']
+
+sources:
+  web_server:
+    description: "Apache HTTP Server 2.4.62"
+    dataset: "http"
+    attributes:
+      method:
+        type: "choice"
+        values: ['GET', 'POST', 'PUT', 'DELETE']
+      path:
+        type: "choice"
+        values: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/health', '/metrics']
+      protocol:
+        type: "choice"
+        values: ['HTTP/1.1', 'HTTP/2.0']
+      status:
+        type: "choice"
+        values: [200, 201, 400, 401, 403, 404, 500]
+      bytes:
+        type: "integer"
+        min: 500
+        max: 5000
+      client_ip:
+        type: "string"
+        generator: "client_ip"
+      user_agent:
+        type: "choice"
+        values: [
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+        ]
+      referer:
+        type: "choice"
+        values: ['-', 'https://example.com', 'https://google.com']
+      response_time:
+        type: "integer"
+        min: 100
+        max: 5000
+    volume:
+      - pattern: "24/7"
+        count: 10
+        distribution: "gaussian"
+    event_types:
+      - type: "access"
+        format: "{client_ip} - - [{timestamp}] \"{method} {path} {protocol}\" {status} {bytes} \"{referer}\" \"{user_agent}\""
+        create_from_scratch: true
+  app_server:
+    description: "Express.js 4.17.1"
+    dataset: "app"
+    attributes:
+      level:
+        type: "choice"
+        values: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+      service:
+        type: "choice"
+        values: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+      response_time:
+        type: "integer"
+        min: 100
+        max: 5000
+      containerId:
+        type: "choice"
+        values: ['container-1', 'container-2', 'container-3']
+      clientId:
+        type: "choice"
+        values: ['client-1', 'client-2', 'client-3', 'client-4']
+      endpoint:
+        type: "choice"
+        values: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/api/v1/auth']
+      message:
+        type: "choice"
+        values: [
+          "User authentication successful",
+          "Cache miss for product data",
+          "Order created successfully",
+          "Stock level check completed",
+          "Rate limit threshold approaching"
+        ]
+    volume:
+      - pattern: "24/7"
+        count: 100
+        distribution: "gaussian"
+    event_types:
+      - type: "auth"
+        format: "[{timestamp}] {level} [{service}] - User authentication successful"
+        create_from_scratch: false
+      - type: "cache_miss"
+        format: "{timestamp} {level} [{service}] - Cache miss for product data"
+        create_from_scratch: false
+      - type: "order_create"
+        format: "{timestamp} {level} service:order-service - Order created successfully"
+        create_from_scratch: false
+      - type: "inventory"
+        format: "[{timestamp}] {level} [{service}] {containerId} - Stock level check completed"
+        create_from_scratch: false
+      - type: "rate_threshold"
+        format: "{timestamp} {level} [{service}] {containerId} {clientId} {endpoint} - Rate limit threshold approaching"
+        create_from_scratch: false
+
+  mysql:
+    description: "MySQL error logs"
+    dataset: "db"
+    volume:
+      - pattern: "24/7"
+        count: 100
+        distribution: "gaussian"
+    attributes:
+      timestamp:
+        type: "timestamp"
+        format: "%Y-%m-%d %H:%M:%S.%L"
+      thread_id:
+        type: "choice"
+        values: ["12345", "12346", "12347", "12348", "12349", "12350", "12351", "12352", "12353", "12354", "12355", "12356", "12357", "12358", "12359", "12360", "12361", "12362", "12363", "12364", "12365", "12366", "12367", "12368", "12369", "12370", "12371", "12372", "12373", "12374", "23456", "23457", "23458", "23459", "23460", "23461", "23462", "23463", "23464", "23465", "23466", "23467", "23468", "23469", "23470", "23471", "23472", "23473", "23474", "23475", "23476", "23477", "23478", "23479", "23480", "23481", "23482", "23483", "23484", "23485", "23486", "23487", "23488", "23489", "23490", "23491", "23492", "23493", "23494", "23495", "23496", "23497", "23498", "23499", "23500", "23501", "23502", "23503", "23504", "23505", "23506", "23507", "23508", "23509", "23510", "23511", "23512", "23513", "23514", "23515"]
+      error_level:
+        type: "choice"
+        values: ["Error", "Warning"]
+      subsystem:
+        type: "choice"
+        values: ["InnoDB", "Server", "Query", "Performance", "Security", "Storage", "Replication"]
+      error_code:
+        type: "choice"
+        values: ["1213", "1015", "1040", "1064", "1287", "1022", "1129", "1799", "1021", "1201", "1216", "1292", "1045", "1785", "1153", "1259", "1205", "1236", "1030", "1315", "1412", "1827", "1418", "1805", "1242", "1593", "1044", "1265", "1033", "1067", "1466", "1076", "1313", "1025", "1235", "1142", "1118", "1247", "1062", "1276", "1114", "1285", "1105", "1677", "1050", "1739", "1263", "1088", "1355", "1196", "1008", "1698", "1707", "1093", "1642", "1041", "1200", "1026"]
+      message:
+        type: "choice"
+        values: [
+          "Deadlock found when trying to get lock; try restarting transaction",
+          "InnoDB: Cannot create temporary table",
+          "Too many connections",
+          "You have an error in your SQL syntax",
+          "Using temporary table for subquery result",
+          "Can't write; duplicate key in table 'users'",
+          "Host '192.168.1.100' is blocked because of many connection errors",
+          "Creating index without full text support",
+          "Disk full",
+          "Could not initialize master info structure",
+          "Foreign key constraint fails",
+          "Truncated incorrect DOUBLE value",
+          "Access denied for user 'app_user'@'localhost'",
+          "Read page with wrong checksum",
+          "Got a packet bigger than 'max_allowed_packet'",
+          "Multiple tables used in query without index",
+          "Lock wait timeout exceeded",
+          "Slave SQL thread stopped due to error",
+          "Got error 28 from storage engine",
+          "Query execution was interrupted",
+          "Table corruption",
+          "SSL connection error",
+          "This table type requires a primary key",
+          "Column count of mysql.proc is wrong",
+          "Subquery returns more than 1 row",
+          "Invalid default value for datetime column 'created_at'",
+          "Cannot find tablespace for table 'archive_data'",
+          "Shutdown in progress - no new connections allowed",
+          "Error renaming table 'temp_users' to 'users'",
+          "Thread pool queue full, dropping connection",
+           "Transaction (1) with query UPDATE users SET last_login = '2025-01-03 08:23:15' WHERE id = 12345 and Transaction (2) with query UPDATE user_sessions SET status = 'active' WHERE user_id = 12345",
+          "Temporary table space is full. allocated 2048MB of 2048MB",
+          "Current connections: 501, Max connections: 500",
+          "Syntax error near 'WEHRE age > 18' at line 1 in query: SELECT * FROM employees WEHRE age > 18",
+          "Query: SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE country = 'US')",
+          "Duplicate entry 'john.doe@example.com' for key 'email_unique'",
+          "100 connection errors in last 60 seconds",
+          "FULLTEXT index creation requires InnoDB_ft_enable_stopword=1",
+          "Can't create new file '/var/lib/mysql/ibdata1'; errno: 28",
+          "Master info repository is not configured",
+          "Cannot delete from parent table 'departments' because foreign key constraint on 'employees' fails",
+          "Value '12.34.56' could not be converted to DOUBLE",
+          "Using password: YES, Invalid authentication factors",
+          "Page [page_id=123456] in tablespace [orders] has wrong checksum",
+          "Packet size: 16777216 bytes, Max allowed: 4194304 bytes",
+          "Tables: orders, customers, products. Consider adding indexes",
+          "Transaction waited 50 seconds for row lock on table 'orders'",
+          "Could not execute Update_rows event on table 'customers'",
+          "No space left on device; required: 1024MB, available: 100MB",
+          "Query running for 600 seconds exceeded long_query_time",
+          "Index corruption found in table 'products.idx_category'",
+          "SSL connection error: SSL_CTX_set_tmp_dh failed",
+          "Table 'audit_logs' has no primary key",
+          "Expected 21 columns but found 20 in mysql.proc",
+          "Subquery in UPDATE statement returned multiple rows",
+          "Row size exceeded maximum length for table 'product_details'",
+          "Semi-sync master wait for slave ACK timeout",
+          "Cannot establish SSL connection: protocol version mismatch",
+          "Foreign key check failed during online DDL operation",
+          "Out of memory in table 'tmp_table'; try increasing tmp_table_size"
+        ]
+      
+    event_types:
+      - type: "error"
+        format: "{timestamp},{thread_id},{error_level},{subsystem},{error_code},{message}"
+        create_from_scratch: false
+
+
+
+  ec2:
+    description: "Amazon EC2 logs"
+    dataset: "ec2"
+    volume:
+      - pattern: "24/7"
+        count: 100
+        distribution: "gaussian"
+    attributes:
+      timestamp:
+        type: "timestamp"
+        format: "%Y-%m-%dT%H:%M:%S.%LZ"
+      instance_id:
+        type: "choice"
+        values: ["i-0abc123def456"]
+      service:
+        type: "choice"
+        values: [
+          "kernel",
+          "systemd[1]",
+          "amazon-ssm-agent",
+          "cloud-init",
+          "dhclient[891]",
+          "sssd[1891]",
+          "auditd[823]",
+          "ntpd[1234]",
+          "dockerd[2345]",
+          "nginx[3456]",
+          "amazon-cloudwatch-agent[4567]",
+          "sshd[5678]",
+          "sudo",
+          "snapd[6789]",
+          "yum[8901]",
+          "cron[9012]"
+        ]
+      message:
+        type: "choice"
+        values: [
+          "[62476.902173] TCP: eth0: Out of socket memory",
+          "Started Daily apt download activities.",
+          "[62524.789234] Memory cgroup out of memory: Killed process 1234 (nginx) total-vm:1024KB, anon-rss:512KB",
+          "Successfully registered the instance with AWS SSM using Parameter Store",
+          "Cloud-init v. 21.4 running 'modules:final' at Thu, 03 Jan 2025 00:04:12 +0000",
+          "DHCPREQUEST on eth0 to 172.31.32.1 port 67",
+          "DHCPACK from 172.31.32.1",
+          "[62677.345678] EXT4-fs (xvda1): re-mounted. Opts: (null)",
+          "Starting System Security Services Daemon...",
+          "Starting up",
+          "[62795.123456] CPU3: Core temperature above threshold, cpu clock throttled",
+          "Audit daemon starting up",
+          "synchronized to 169.254.169.123, stratum 3",
+          "[62918.234567] docker0: port 1(veth1234) entered blocking state",
+          "Started Docker Application Container Engine.",
+          "Container 82a3b4c5d6e7 started",
+          "[63051.345678] TCP: request_sock_TCP: Possible SYN flooding on port 80. Sending cookies.",
+          "192.168.1.100 - - [03/Jan/2025:00:16:29 +0000] \"GET /api/v1/status HTTP/1.1\" 200 1234",
+          "Starting Daily apt upgrade and clean activities...",
+          "[63184.456789] High memory pressure - swapping active",
+          "Successfully sent metrics to CloudWatch",
+          "Accepted publickey for ec2-user from 203.0.113.45 port 49812",
+          "ec2-user : TTY=pts/0 ; PWD=/home/ec2-user ; USER=root ; COMMAND=/bin/systemctl restart nginx",
+          "[63317.567890] Process accounting resumed",
+          "autorefresh.go:475: auto-refresh: all snaps are up-to-date",
+          "[63450.678901] Out of memory: Kill process 7890 (java) score 901 or sacrifice child",
+          "Started Cleanup of Temporary Directories.",
+          "[63583.789012] IPv6: eth0: IPv6 duplicate address fe80::1234:5678:90ab:cdef detected!",
+          "Updated: amazon-ssm-agent-3.2.582.0-1.amzn2.x86_64",
+          "(CRON) INFO (Running @reboot jobs)"
+        ]
+    event_types:
+      - type: "ec2"
+        format: "{{timestamp}} {{instance_id}} {{service}}: {{message}}"
+        create_from_scratch: true
+  k8s:
+      description: "Kubernetes cluster logs"
+      dataset: "k8s"
+      volume:
+        - pattern: "24/7"
+          count: 100
+          distribution: "gaussian"
+      attributes:
+        timestamp:
+          type: "timestamp"
+          format: "%Y-%m-%dT%H:%M:%S.%LZ"
+        stream:
+          type: "choice"
+          values: ["stdout", "stderr"]
+        type:
+          type: "choice"
+          values: ["F"]
+        pod:
+          type: "choice"
+          values: [
+            "[kube-system/aws-node-g4d2x]",
+            "[kube-system/coredns-7b5bcb98f-x9j2q]",
+            "[default/nginx-deployment-66b6c48dd5-abc12]",
+            "[monitoring/prometheus-operator-75d9b47cf4-def34]",
+            "[kube-system/kube-proxy-ip-10-0-12-123.ec2.internal]",
+            "[default/frontend-app-5f7b9db5c7-ghi56]",
+            "[ingress-nginx/ingress-nginx-controller-789bdf554f-jkl78]",
+            "[kube-system/cluster-autoscaler-6d4cb5f94d-mno90]",
+            "[default/redis-master-0]",
+            "[kube-system/aws-load-balancer-controller-55cd5c7bb4-pqr12]",
+            "[logging/elasticsearch-master-0]",
+            "[default/payment-service-66d7c48dd5-stu34]",
+            "[monitoring/grafana-5b4d589f68-vwx56]",
+            "[kube-system/external-dns-78b4dc6847-yza12]",
+            "[default/cache-deployment-7d6f8cf9b8-bcd34]",
+            "[kube-system/calico-node-efg56]",
+            "[default/order-processor-59d7b47cf4-hij78]",
+            "[monitoring/alertmanager-main-0]",
+            "[kube-system/aws-efs-csi-node-klm90]",
+            "[default/authentication-service-88f7c48dd5-nop12]",
+            "[logging/fluentd-ds-qrs34]",
+            "[kube-system/metrics-server-5d4cb5f94d-tuv56]",
+            "[default/rabbitmq-0]",
+            "[monitoring/blackbox-exporter-75b6c48dd5-wxy78]",
+            "[kube-system/velero-backup-abc90]",
+            "[default/api-gateway-66b6c48dd5-def12]",
+            "[security/vault-0]",
+            "[kube-system/cert-manager-5f7b9db5c7-ghi34]",
+            "[default/user-service-789bdf554f-jkl56]"
+          ]
+        message:
+          type: "choice"
+          values: [
+            "Starting AWS CNI plugin v1.12.1",
+            "Error while connecting to Kubernetes API server: connection refused",
+            "Successfully pulled image \"nginx:1.21.1\"",
+            "Level=info msg=\"Starting Prometheus Operator version 0.55.1\"",
+            "W0103 08:15:27.345123    1 proxier.go:485] Failed to load kernel module ip_vs_wrr",
+            "Connected to backend service at http://backend-service:8080",
+            "10.0.23.45 - \"GET /api/v1/users HTTP/1.1\" 200 1234 0.089",
+            "I0103 08:15:30.678901    1 scale_up.go:706] Scale-up: setting group DefaultNodeGroup size to 3",
+            "Ready to accept connections",
+            "E0103 08:15:32.890123    1 controller.go:217] error reconciling LoadBalancer: failed to ensure load balancer attributes",
+            "[2024-01-03T08:15:33,901][INFO ][o.e.c.m.MetadataCreateIndexService] [elasticsearch-master-0] [logs-2024.01.03] creating index",
+            "Starting payment processing service...",
+            "t=2024-01-03T08:15:35+0000 lvl=eror msg=\"Failed to connect to database\" error=\"dial tcp: lookup mysql-service: no such host\"",
+            "time=\"2024-01-03T08:15:36Z\" level=info msg=\"Updating DNS record\" record=\"api.example.com\" target=\"alb.amazonaws.com\"",
+            "Cache hit ratio: 87.5% (last 5 minutes)",
+            "2024-01-03 08:15:38.456 [ERROR][99] felix/ipsets.go 789: Failed to update ipsets",
+            "Processing order ID: ORD-2024-123456 - Status: COMPLETED",
+            "level=info ts=2024-01-03T08:15:40.678Z caller=coordinator.go:124 component=configuration msg=\"Completed loading of configuration file\"",
+            "E0103 08:15:41.789123    1 mount_linux.go:431] Failed to mount /dev/xvda1 at /var/lib/kubelet/pods: no such file or directory",
+            "JWT token validated for user: john.doe@example.com",
+            "2024-01-03 08:15:43 +0000 [info]: #0 following tail of /var/log/containers/*.log",
+            "E0103 08:15:44.012345    1 manager.go:111] unable to fully collect metrics: unable to fetch metrics from node ip-10-0-14-156.ec2.internal",
+            "2024-01-03 08:15:45.123 [info] <0.789.0> node rabbit@rabbitmq-0 up",
+            "level=info ts=2024-01-03T08:15:46.234Z caller=main.go:213 msg=\"Starting blackbox_exporter\" version=\"0.19.0\"",
+            "time=\"2024-01-03T08:15:47Z\" level=error msg=\"error backing up item\" backup=daily-backup error=\"timed out waiting for caches to sync\"",
+            "2024/01/03 08:15:48 [INFO] Handling request: POST /api/v2/transactions",
+            "2024-01-03T08:15:49.567Z [INFO]  core: successful mount: namespace= path=secret/ type=kv",
+            "I0103 08:15:50.678901    1 controller.go:129] cert-manager/controller/certificates \"msg\"=\"Certificate requires renewal\" \"resource_name\"=\"wildcard-cert\"",
+            "Database connection pool current size: 25, active: 18, idle: 7"
+          ]
+      event_types:
+        - type: "k8s"
+          format: "{{timestamp}} {{stream}} {{type}} {{pod}} {{message}}"
+          create_from_scratch: true
+
+  rds:
+    description: "Amazon RDS logs"
+    dataset: "rds"
+    volume:
+      - pattern: "24/7"
+        count: 100
+        distribution: "gaussian"
+    attributes:
+      timestamp:
+        type: "timestamp"
+        format: "%Y-%m-%d %H:%M:%S UTC"
+      pid:
+        type: "choice"
+        values: ["3829", "3830", "3831", "3832", "3833", "3834", "3835", "3836", "3837", "3838", "3839", "3840"]
+      sequence:
+        type: "choice"
+        values: ["[1-1]", "[2-1]", "[3-1]"]
+      user:
+        type: "choice"
+        values: ["admin", "app_user", "replication", "system", "monitoring", "backup"]
+      db:
+        type: "choice"
+        values: ["production"]
+      message:
+        type: "choice"
+        values: [
+          "LOG: connection authorized: user=admin database=production SSL enabled (protocol=TLSv1.2, cipher=ECDHE-RSA-AES256-GCM-SHA384, compression=off)",
+          "LOG: checkpoint starting: time=1704268805.893 elapsed=0.000 sec",
+          "LOG: checkpoint complete: wrote 542 buffers (3.3%); 0 WAL file(s) added, 0 removed, 2 recycled; write=1.728 sec, sync=0.483 sec, total=2.214 sec",
+          "ERROR: relation \"users\" does not exist at character 15",
+          "STATEMENT: SELECT * FROM users WHERE id = 1234;",
+          "LOG: duration: 1325.844 ms execute <unnamed>: SELECT COUNT(*) FROM large_table WHERE created_at >= $1",
+          "LOG: streaming replication successfully connected to primary",
+          "LOG: autovacuum launcher started",
+          "LOG: temporary file: path \"base/16384/pgsql_tmp_16384.0\", size 2147483648",
+          "LOG: connection received: host=10.0.1.123 port=52631",
+          "LOG: statement: SELECT pg_database_size('production');",
+          "WARNING: transaction ID wraparound is only 500000 transactions away",
+          "LOG: parameter \"max_connections\" changed to \"200\"",
+          "LOG: archive command failed with exit code 1",
+          "ERROR: deadlock detected",
+          "DETAIL: Process 3842 waits for ShareLock on transaction 1234; blocked by process 3843.",
+          "LOG: database system is ready to accept connections",
+          "LOG: duration: 5438.327 ms execute <unnamed>: UPDATE large_table SET status = $1 WHERE id IN (SELECT id FROM temp_table)",
+          "LOG: replication slot \"replica_1\" was created",
+          "LOG: database \"production\" must be vacuumed within 938860 transactions",
+          "LOG: starting backup \"2025-01-03_08:01:30\"",
+          "ERROR: could not extend file \"base/16384/16385\": No space left on device",
+          "LOG: recovery finished at 2025-01-03 08:01:45 UTC",
+          "LOG: abnormal database system shutdown",
+          "LOG: database system is shut down",
+          "FATAL: remaining connection slots are reserved for non-replication superuser connections",
+          "LOG: shutting down",
+          "LOG: backup \"2025-01-03_08:01:30\" completed"
+        ]
+    event_types:
+      - type: "rds"
+        format: "{{timestamp}} [{{pid}}]: {{sequence}} user={{user}},db={{db}} {{message}}"
+        create_from_scratch: true
+ 
+dependencies:
+  - trigger:
+      source: "web_server"
+      event_type: "access"
+    action:
+      source: "app_server"
+      event_type: "order_create"
+  - trigger:
+      source: "app_server"
+      event_type: "order_create"
+    action:
+      source: "mysql"
+      event_type: "error"
+      frequency: 0.01 # 1% of order_create events will trigger an error event

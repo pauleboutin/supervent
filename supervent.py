@@ -44,6 +44,7 @@ def load_config(file_path):
 async def main():
     event_count = 0
     start_generation_time = time.time()
+    generator = None  # Initialize generator to prevent UnboundLocalError
 
     try:
         args = parse_args()
@@ -102,15 +103,22 @@ async def main():
         event_count += len(generator.processed_events)
 
         total_time = time.time() - start_generation_time
-        logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
+        if generator:
+            logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
+        else:
+            logging.info(f"No events generated in {total_time:.2f} seconds.")
 
         if args.output == 'postgres':
             PG_CONNECTION.close()
 
     except Exception as e:
-        logging.critical("An error occurred:", e)
+        logging.critical(f"An error occurred: {str(e)}")
         total_time = time.time() - start_generation_time
-        logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
+        if generator:
+            logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
+        else:
+            logging.info(f"Failed before generating any events. Elapsed time: {total_time:.2f} seconds.")
+        
         if args.output == 'postgres' and 'PG_CONNECTION' in globals():
             PG_CONNECTION.close()
         raise
