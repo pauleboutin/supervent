@@ -193,6 +193,8 @@ class EventGenerator:
             await self.generate_sine_wave_events(count, distribution, start_time, end_time, source_description, event_types, source)
         elif pattern == "linear_increase":
             await self.generate_linear_increase_events(count, distribution, start_time, end_time, source_description, event_types, source)
+        elif pattern == "aspirational":
+            await self.generate_linear_increase_events(count, distribution, start_time, end_time, source_description, event_types, source)
         else:
             raise ValueError(f"Unsupported pattern type: {pattern}")
 
@@ -233,6 +235,40 @@ class EventGenerator:
             event_time = start_time + timedelta(seconds=t)
             await self.create_events(i + 1, distribution, {'start': event_time, 'end': event_time}, source_description, event_types, source)
 
+    async def generate_aspirational_growth_events(self, count, distribution, time_period, source_description, event_types, source):
+        start_time = time_period['start']
+        end_time = time_period['end']
+        total_seconds = (end_time - start_time).total_seconds()
+        
+        # Calculate growth rate for exponential curve
+        growth_rate = math.log(count) / total_seconds
+        
+        # Pre-calculate all events and batch them using the output batch size
+        all_events = []
+        
+        # Generate all timestamps first
+        for i in range(count):
+            t = i / count * total_seconds
+            events_at_t = int(math.exp(growth_rate * t))
+            event_time = start_time + timedelta(seconds=t)
+            all_events.append((event_time, events_at_t))
+        
+        # Process in batches using the output batch size
+        for i in range(0, len(all_events), self.output_batch_size):
+            batch = all_events[i:i + self.output_batch_size]
+            batch_count = sum(e[1] for e in batch)
+            batch_start = min(e[0] for e in batch)
+            batch_end = max(e[0] for e in batch)
+            
+            await self.create_events(
+                batch_count,
+                distribution,
+                {'start': batch_start, 'end': batch_end},
+                source_description,
+                event_types,
+                source
+            )
+
     def extract_placeholders(self, format_string):
         """Extract all placeholder names from a format string."""
         import re
@@ -254,16 +290,20 @@ class EventGenerator:
             if (dependency['trigger']['source'] == event['source_type'] and
                 dependency['trigger']['event_type'] == event['event_type']):
                 
-                # Generate the dependent event using the unified create_event
-                dependent_event = self.create_event(
-                    source_name=dependency['action']['source'],
-                    event_type=dependency['action']['event_type'],
-                    parent_event=event
-                )
-                events.append(dependent_event)
-                
-                # Recursively process dependencies for the new event
-                self.chain_events(dependent_event, events)
+                # Check percentage before generating dependent event
+                percentage = dependency['action'].get('percentage', 100)
+                if random.randint(1, 100) <= percentage:
+                    # Generate the dependent event using the unified create_event
+                    dependent_event = self.create_event(
+                        source_name=dependency['action']['source'],
+                        event_type=dependency['action']['event_type'],
+                        parent_event=event
+                    )
+                    events.append(dependent_event)
+                    
+                    # Recursively proqcess dependencies for the new event
+                    self.chain_events(dependent_event, events)
+
 
     async def create_events(self, count, distribution, time_period, source_description, event_types, source):
         events = []
