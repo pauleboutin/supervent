@@ -367,7 +367,9 @@ class EventGenerator:
     def clean_event_batch(self, events):
         """Clean a batch of events by removing source_type and converting timestamps."""
         for event in events:
-            event.pop('source_type', None)  # Remove source_type if it exists
+            event.pop('source_type', None)
+            event.pop('event_type', None)
+            event.pop('dataset', None)
                     
 
 
@@ -429,6 +431,7 @@ class EventGenerator:
 
                 # Process events in chunks
                 for chunk in self.chunk_list(source_events, self.batch_size):
+                    self.clean_event_batch(chunk) #remove fields we do not want to publish in the event, e.g. dataset
                     api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
                     logging.debug(f"Sending events to dataset: {dataset} for source_type: {source_type}")
                     
@@ -456,6 +459,7 @@ class EventGenerator:
 
 
     async def send_events_to_postgres(self, events):
+            self.clean_event_batch(events)  # Remove fields we do not want to publish in the event, e.g. dataset
             with PG_CONNECTION.cursor() as cur:
                 for event in events:
                     cur.execute("""
@@ -465,7 +469,6 @@ class EventGenerator:
                         event['source'],
                         event['_time'],
                         event['message'],
-                        event['event_type'],
                         json.dumps(event['attributes'])
                     ))
             PG_CONNECTION.commit()
@@ -478,6 +481,8 @@ class EventGenerator:
         for event in events:
             if '_time' in event and isinstance(event['_time'], datetime):
                 event['_time'] = event['_time'].isoformat()
+                
+        self.clean_event_batch(events)  # Remove fields we do not want to publish in the event, e.g. dataset
     
         if self.output_file == sys.stdout:  
             # Write directly to stdout
