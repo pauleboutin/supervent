@@ -429,6 +429,74 @@ sources:
       - type: "rds"
         format: "{{timestamp}} [{{pid}}]: {{sequence}} user={{user}},db={{db}} {{message}}"
         create_from_scratch: true
+
+  okta_logs:
+    description: "Okta System Logs"
+    dataset: "okta"
+    attributes:
+      eventId:
+        type: "choice"
+        values: ['ev1', 'ev2', 'ev3', 'ev4', 'ev5']
+      eventType:
+        type: "choice"
+        values: ['user.session.start', 'user.session.end', 'user.mfa.attempt_fail', 'system.api_token.create']
+      severity:
+        type: "choice"
+        values: ['INFO', 'WARN', 'ERROR']
+      actor.id:
+        type: "choice"
+        values: ['00u1', '00u2', '00u3', '00u4']
+      actor.type:
+        type: "choice"
+        values: ['User', 'System']
+      actor.alternateId:
+        type: "choice"
+        values: ['john.doe@company.com', 'jane.smith@company.com', 'admin@company.com']
+      actor.displayName:
+        type: "choice"
+        values: ['John Doe', 'Jane Smith', 'System Admin']
+      client.userAgent.browser:
+        type: "choice"
+        values: ['CHROME', 'FIREFOX', 'SAFARI', 'EDGE']
+      client.userAgent.os:
+        type: "choice"
+        values: ['Windows', 'Mac OS X', 'iOS', 'Android']
+      client.ipAddress:
+        type: "choice"
+        values: ['192.168.1.1', '10.0.0.1', '172.16.0.1']
+      id:
+        type: "choice"
+        values: ["EMP1024", "EMP2891", "CONT445", "ADMIN007", "USR3672", "DEV889", "MGR156", "SUPP234", "TECH673", "HR445"]
+      type:
+        type: "choice"
+        values: ["employee", "contractor", "admin", "developer", "manager", "support", "technical_staff", "hr_staff"]
+      displayName:
+        type: "choice"
+        values: ['John Doe', 'Jane Smith', 'System Admin']
+      browser:
+        type: "choice"
+        values: ['CHROME', 'FIREFOX', 'SAFARI', 'EDGE']
+      os:
+        type: "choice"
+        values: ['Windows', 'Mac OS X', 'iOS', 'Android']
+      ipAddress:
+        type: "choice"
+        values: ['192.168.1.1', '10.0.0.1', '172.16.0.1']
+    volume:
+      - pattern: "24/7"
+        count: 100
+        distribution: "gaussian"
+    event_types:
+      - type: "login"
+        format: '{eventId} {timestamp} user.session.start {severity} {id} {type} {displayName} {browser} {os} {ipAddress}'
+        create_from_scratch: true
+      - type: "logout"
+        format: '{eventId} {timestamp} user.session.end {severity} {id} {type} {displayName} {browser} {os} {ipAddress}'
+        create_from_scratch: true
+      - type: "mfa_fail"
+        format: '{eventId} {timestamp} user.mfa.attempt_fail WARN {id} {type} {displayName} {browser} {os} {ipAddress}'
+        create_from_scratch: true
+
  
 dependencies:
   - trigger:
