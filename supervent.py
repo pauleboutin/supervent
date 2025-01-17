@@ -559,7 +559,7 @@ class EventGenerator:
             f"192.168.{random.randint(0, 255)}.{random.randint(0, 255)}"
         ])
         end_time = time.time()
-        logging.debug(f"Client IP generation took {end_time - start_time:.6f} seconds")
+        # logging.debug(f"Client IP generation took {end_time - start_time:.6f} seconds")
         return private_ip
 
     def generate_response_time(self):
