@@ -19,6 +19,13 @@ import psycopg2
 from psycopg2.extras import Json
 import aiofiles
 import math
+from multiprocessing import Pool, cpu_count
+from functools import partial
+import multiprocessing.shared_memory
+
+# At the top of the file, after imports
+shutdown_requested = multiprocessing.Value('i', 0)
+
 
 def setup_logging(args):
     if args.log_level == 'NONE':
@@ -35,7 +42,7 @@ def setup_logging(args):
 load_dotenv(override=True)
 
 DEFAULT_BATCH_SIZE = 100000
-DEFAULT_OUTPUT_FILE = sys.stdout
+DEFAULT_OUTPUT_FILE = '-'  # Use '-' to represent stdout instead of sys.stdout directly
 
 def load_config(file_path):
     with open(file_path, 'r') as f:
@@ -44,7 +51,6 @@ def load_config(file_path):
 async def main():
     event_count = 0
     start_generation_time = time.time()
-    generator = None  # Initialize generator to prevent UnboundLocalError
 
     try:
         args = parse_args()
@@ -54,6 +60,19 @@ async def main():
         logging.debug("Loading configuration...")
         config = load_config(args.config)
         logging.debug("Configuration loaded successfully.")
+
+        # Create the generator instance early
+        generator = EventGenerator(
+            config.get('event_frequencies', {}),
+            config,
+            output_type=args.output,
+            batch_size=args.batch_size,
+            output_file_path='-' if args.file == sys.stdout else args.file
+        )
+
+        # Set up signal handlers after creating the generator
+        signal.signal(signal.SIGINT, generator.signal_handler)
+        signal.signal(signal.SIGTERM, generator.signal_handler)
 
         # Configure output based on args
         if args.output == 'axiom':
@@ -90,23 +109,54 @@ async def main():
         end_time = datetime.fromisoformat(config['end_time'].replace('Z', '+00:00'))
         logging.debug(f"Start time: {start_time}, End time: {end_time}")
 
-        event_frequencies = config.get('event_frequencies', {})
-        logging.debug("Event frequencies loaded:", event_frequencies)
+        # Calculate chunks for multiprocessing
+        num_processes = max(cpu_count() - 1, 1)
+        logging.debug(f"Using {num_processes} processes for event generation.")
+        total_events = sum(vol['count'] for source in config['sources'].values() 
+                         for vol in source.get('volume', []))
+        chunk_size = total_events // (num_processes * 10)
+        
+        # Create time chunks
+        time_delta = (end_time - start_time) / num_processes
+        time_chunks = [
+            (start_time + (time_delta * i), 
+             start_time + (time_delta * (i + 1)),
+             chunk_size)
+            for i in range(num_processes)
+        ]
 
-        generator = EventGenerator(event_frequencies, config, output_type=args.output, batch_size=args.batch_size, output_file=args.file)
-        logging.debug("Event generator created.")
+        # Prepare arguments for worker processes
+        worker_args = [
+            (config.get('event_frequencies', {}), config, args.output, args.batch_size, 
+             '-' if args.file == sys.stdout else args.file, time_chunk) 
+            for time_chunk in time_chunks
+        ]
 
-        signal.signal(signal.SIGINT, generator.signal_handler)
-        signal.signal(signal.SIGTERM, generator.signal_handler)
-
+        # Run event generation in parallel
+        with Pool(processes=num_processes) as pool:
+            try:
+                results = pool.map_async(worker_generate_chunk, worker_args)
+                while not results.ready():
+                    if shutdown_requested.value:
+                        pool.terminate()
+                        pool.join()
+                        break
+                    await asyncio.sleep(0.1)
+                
+                if not shutdown_requested.value:
+                    results.get()  # Get results if not terminated
+            except KeyboardInterrupt:
+                logging.info("Shutdown requested. Cleaning up...")
+            finally:
+                if 'pool' in locals():
+                    pool.terminate()
+                    pool.join()
+        logging.info("All worker processes completed.")
         await generator.generate_events(start_time, end_time)
         event_count += len(generator.processed_events)
 
         total_time = time.time() - start_generation_time
-        if generator:
-            logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
-        else:
-            logging.info(f"No events generated in {total_time:.2f} seconds.")
+        logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
 
         if args.output == 'postgres':
             PG_CONNECTION.close()
@@ -123,9 +173,165 @@ async def main():
             PG_CONNECTION.close()
         raise
 
+    
+def worker_generate_chunk(args):
+    event_frequencies, config, output_type, batch_size, output_file_path, time_chunk = args
+    
+    # Convert '-' to sys.stdout if needed
+    if output_file_path == '-':
+        output_file_path = sys.stdout
+        
+    generator = EventGenerator(
+        event_frequencies, 
+        config, 
+        output_type=output_type, 
+        batch_size=batch_size, 
+        output_file_path=output_file_path
+    )
+    
+    start_time, end_time, chunk_size = time_chunk
+    events = []
+    
+    try:
+        # Calculate events per source based on volume configuration
+        total_volume = sum(
+            sum(vol['count'] for vol in source_config.get('volume', []))
+            for source_config in config['sources'].values()
+        )
+        
+        # Generate events for each source
+        for source_name, source_config in config['sources'].items():
+            if shutdown_requested.value:
+                break
+                
+            source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
+            source_chunk_size = int((source_volume / total_volume) * chunk_size)
+            
+            event_types = [et for et in source_config.get('event_types', []) 
+                          if et.get('create_from_scratch', False)]
+            
+            if not event_types:
+                continue
+                
+            for _ in range(source_chunk_size):
+                if shutdown_requested.value:
+                    break
+                    
+                event_type = random.choice(event_types)
+                event = generator.create_event(
+                    source_name=source_name,
+                    event_type=event_type['type'],
+                    timestamp=generator.random_time_between(start_time, end_time)
+                )
+                events.append(event)
+                
+                if len(events) >= batch_size:
+                    # Process batch
+                    events = []
+    except KeyboardInterrupt:
+        return events
+    
+    return events
+def worker_generate_chunk(args):
+    event_frequencies, config, output_type, batch_size, output_file_path, time_chunk = args
+    
+    # Convert '-' to sys.stdout if needed
+    if output_file_path == '-':
+        output_file_path = sys.stdout
+        
+    generator = EventGenerator(
+        event_frequencies, 
+        config, 
+        output_type=output_type, 
+        batch_size=batch_size, 
+        output_file_path=output_file_path
+    )
+    
+    start_time, end_time, chunk_size = time_chunk
+    events = []
+    
+    try:
+        # Calculate events per source based on volume configuration
+        total_volume = sum(
+            sum(vol['count'] for vol in source_config.get('volume', []))
+            for source_config in config['sources'].values()
+        )
+        
+        # Generate events for each source
+        for source_name, source_config in config['sources'].items():
+            if shutdown_requested.value:
+                break
+                
+            source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
+            source_chunk_size = int((source_volume / total_volume) * chunk_size)
+            
+            event_types = [et for et in source_config.get('event_types', []) 
+                          if et.get('create_from_scratch', False)]
+            
+            if not event_types:
+                continue
+                
+            for _ in range(source_chunk_size):
+                if shutdown_requested.value:
+                    break
+                    
+                event_type = random.choice(event_types)
+                event = generator.create_event(
+                    source_name=source_name,
+                    event_type=event_type['type'],
+                    timestamp=generator.random_time_between(start_time, end_time)
+                )
+                events.append(event)
+                
+                if len(events) >= batch_size:
+                    # Process batch
+                    events = []
+    except KeyboardInterrupt:
+        return events
+    
+    return events
+
+    
+    start_time, end_time, chunk_size = time_chunk
+    events = []
+    
+    # Calculate events per source based on volume configuration
+    total_volume = sum(
+        sum(vol['count'] for vol in source_config.get('volume', []))
+        for source_config in config['sources'].values()
+    )
+    
+    # Generate events for each source
+    for source_name, source_config in config['sources'].items():
+        source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
+        source_chunk_size = int((source_volume / total_volume) * chunk_size)
+        
+        event_types = [et for et in source_config.get('event_types', []) 
+                      if et.get('create_from_scratch', False)]
+        
+        if not event_types:
+            continue
+            
+        for _ in range(source_chunk_size):
+            event_type = random.choice(event_types)
+            event = generator.create_event(
+                source_name=source_name,
+                event_type=event_type['type'],
+                timestamp=generator.random_time_between(start_time, end_time)
+            )
+            events.append(event)
+            
+            if len(events) >= batch_size:
+                # Process batch
+                events = []
+    
+    return events
+
+
+
 
 class EventGenerator:
-    def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE, output_file=DEFAULT_OUTPUT_FILE):
+    def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE, output_file_path=None):
         self.event_frequencies = event_frequencies
         self.config = config
         self.dependencies = config.get('dependencies', [])
@@ -136,21 +342,22 @@ class EventGenerator:
         self.response_time_max = config['response_time']['max']
         self.output_type = output_type
         self.batch_size = batch_size
-        self.output_file = output_file
+        self.output_file_path = output_file_path
 
+    def generate_chunk(self, time_chunk):
+        start_time, end_time, chunk_size = time_chunk
+        # Open the file within the method
+        with open(self.output_file_path, 'a') as output_file:
+            # Your event generation logic here
+            pass
 
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
+        with shutdown_requested.get_lock():
+            shutdown_requested.value = 1
         total_time = time.time() - self.start_generation_time
-        # Use sys.stderr.write instead of logging to avoid potential stdout conflicts
-        sys.stderr.write(f"\nGenerated {len(self.processed_events)} unique events in {total_time:.2f} seconds.\n")
+        sys.stderr.write(f"\nShutdown requested. Generated {len(self.processed_events)} unique events in {total_time:.2f} seconds.\n")
         sys.stderr.flush()
-        if self.output_file != sys.stdout:
-            try:
-                    logging.shutdown()  # Ensure all logging is complete
-            except Exception:
-                pass
-        os._exit(0)
 
     async def generate_events(self, start_time, end_time):
         logging.debug("Starting event generation...")
@@ -447,7 +654,7 @@ class EventGenerator:
             logging.critical(f"Time period content: {time_period}")
             raise
 
-
+    
     async def send_events_to_axiom(self, events):
         # First, group events by source_type (and thus by dataset)
         events_by_source = {}
@@ -517,28 +724,22 @@ class EventGenerator:
             events.clear()
 
     async def send_events_to_file(self, events):
-        # Convert datetime objects to ISO format strings
-        for event in events:
-            if '_time' in event and isinstance(event['_time'], datetime):
-                event['_time'] = event['_time'].isoformat()
-                
-        self.clean_event_batch(events)  # Remove fields we do not want to publish in the event, e.g. dataset
-    
-        if self.output_file == sys.stdout:  
-            # Write directly to stdout
-            for event in events:
-                print(json.dumps(event))
-        else:
-            # Write to specified file
-            async with aiofiles.open(self.output_file, 'a') as f:
+            self.clean_event_batch(events)
+            
+            if self.output_file_path == '-' or self.output_file_path == sys.stdout:
+                # Write directly to stdout
                 for event in events:
-                    await f.write(json.dumps(event) + '\n')
-        
-        self.total_events_sent += len(events)
-        if self.output_file != '-':
-            logging.debug(f"Successfully wrote {len(events)} events to {self.output_file}")
-        events.clear()
-
+                    print(json.dumps(event))
+            else:
+                # Write to specified file
+                async with aiofiles.open(self.output_file_path, 'a') as f:
+                    for event in events:
+                        await f.write(json.dumps(event) + '\n')
+            
+            self.total_events_sent += len(events)
+            if self.output_file_path not in ['-', sys.stdout]:
+                logging.debug(f"Successfully wrote {len(events)} events to {self.output_file_path}")
+            events.clear()
 
 
     def generate_normal_time(self, mean, std_dev):

@@ -1,5 +1,5 @@
-start_time: "2024-12-09T10:00:00Z"
-end_time: "2024-12-09T11:00:00Z"
+start_time: "2025-01-15T10:00:00Z"
+end_time: "2025-01-16T11:00:00Z"
 
 response_time:
   min: 100
@@ -34,13 +34,10 @@ acceptable_values:
     type: "choice"
     values: [
       # Success responses (~80%)
-      200, 200, 200, 200, 200, 200, 200, 200, 200, 200,  # Standard success
-      200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
-      200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
-      200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
-      201, 201, 201, 201, 201,  # Created (for POSTs)
-      204, 204, 204,  # No Content (for DELETEs/updates)
-      206, 206,  # Partial Content (range requests)
+      200, 
+      201, # Created (for POSTs)
+      204,   # No Content (for DELETEs/updates)
+      206,   # Partial Content (range requests)
 
       # Redirects (~5%)
       301, 301,  # Permanent redirects
