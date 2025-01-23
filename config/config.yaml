@@ -5,11 +5,13 @@
 
 upload_config:
   axiom:
-    max_concurrent_uploads: 8  # Default to 8 concurrent upload streams
-    connection_pool_size: 100  # Connections to keep alive per worker
-    batch_size: 100000        # Events per upload request
-    retry_attempts: 3         # Number of times to retry failed uploads
-    retry_delay: 1.0         # Base delay (seconds) between retries
+    max_concurrent_uploads: 64      # Match CPU count
+    connection_pool_size: 1000      # More connections
+    batch_size: 500000             # Larger batches
+    retry_attempts: 3
+    retry_delay: 1.0
+    upload_queue_size: 10000       # Bigger queue buffer
+    network_interfaces: 8          # More network interfaces
 
 start_time: "2024-12-09T10:00:00Z"
 end_time: "2024-12-09T11:00:00Z"
