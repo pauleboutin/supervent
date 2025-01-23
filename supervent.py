@@ -579,7 +579,6 @@ class EventGenerator:
             for source_type, source_events in events_by_source.items():
                 source_config = self.config['sources'].get(source_type, {})
                 dataset = source_config.get('dataset', os.environ.get('AXIOM_DATASET'))
-                
                 # Convert datetime objects to ISO format
                 for event in source_events:
                     if '_time' in event and isinstance(event['_time'], datetime):
@@ -611,6 +610,7 @@ class EventGenerator:
 
     async def upload_chunk_with_retry(self, session, dataset, chunk, source_type):
         api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
+        logging.debug(f"Sending {len(chunk)} events to dataset {dataset}")
         headers = {
             "Authorization": f"Bearer {AXIOM_API_TOKEN}",
             "Content-Type": "application/json"
@@ -622,7 +622,7 @@ class EventGenerator:
                     if response.status == 200:
                         self.total_events_sent += len(chunk)
                         logging.debug(f"Successfully sent {len(chunk)} events to Axiom dataset {dataset}")
-                        logging.debug(f"Response headers: {dict(response.headers)}")
+                        # logging.debug(f"Response headers: {dict(response.headers)}")
                         return
                     elif response.status == 429:  # Rate limit
                         retry_after = int(response.headers.get('Retry-After', self.retry_delay * (2 ** attempt)))
