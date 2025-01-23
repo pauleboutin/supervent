@@ -22,6 +22,8 @@ import math
 from multiprocessing import Pool, cpu_count
 from functools import partial
 import multiprocessing.shared_memory
+from concurrent.futures import ProcessPoolExecutor
+import ujson as json  # Much faster than standard json
 
 # At the top of the file, after imports
 shutdown_requested = multiprocessing.Value('i', 0)
@@ -251,6 +253,8 @@ class EventGenerator:
         self.output_type = output_type
         self.batch_size = batch_size
         self.output_file_path = output_file_path
+        self.num_workers = os.cpu_count() - 1 or 1
+        self.upload_queue_size = self.upload_config.get('upload_queue_size', 1000)
 
     def generate_chunk(self, time_chunk):
         start_time, end_time, chunk_size = time_chunk
@@ -705,6 +709,65 @@ class EventGenerator:
     def generate_response_time(self):
         """Generate a random response time between the configured min and max."""
         return random.randint(self.response_time_min, self.response_time_max)
+
+    async def generate_and_upload_events(self, start_time, end_time):
+        # Create a queue for generated events
+        upload_queue = asyncio.Queue(maxsize=self.upload_queue_size)
+        
+        # Start upload workers
+        upload_workers = [
+            asyncio.create_task(self.upload_worker(upload_queue))
+            for _ in range(self.max_concurrent_uploads)
+        ]
+        
+        # Use ProcessPoolExecutor for event generation
+        with ProcessPoolExecutor(max_workers=self.num_workers) as executor:
+            # Split work among processes
+            chunk_size = total_events // self.num_workers
+            futures = []
+            
+            for worker_id in range(self.num_workers):
+                future = executor.submit(
+                    self.generate_events_chunk,
+                    start_time,
+                    end_time,
+                    chunk_size,
+                    worker_id
+                )
+                futures.append(future)
+                
+            # Process generated events
+            for future in concurrent.futures.as_completed(futures):
+                events_chunk = future.result()
+                await upload_queue.put(events_chunk)
+                
+        # Signal upload workers to finish
+        for _ in range(self.max_concurrent_uploads):
+            await upload_queue.put(None)
+            
+        # Wait for upload workers to complete
+        await asyncio.gather(*upload_workers)
+
+    def generate_events_chunk(self, start_time, end_time, chunk_size, worker_id):
+        """Run in separate process to generate events"""
+        events = []
+        # ... event generation logic ...
+        # Pre-process events (clean, serialize) here in the worker process
+        return events
+
+    async def upload_worker(self, queue):
+        """Dedicated upload worker"""
+        async with aiohttp.ClientSession(
+            connector=aiohttp.TCPConnector(limit=self.connection_pool_size),
+            json_serialize=json.dumps  # Use ujson for faster serialization
+        ) as session:
+            while True:
+                chunk = await queue.get()
+                if chunk is None:  # Poison pill
+                    break
+                    
+                await self.upload_chunk_with_retry(session, chunk)
+                queue.task_done()
 
 def parse_args():
     parser = argparse.ArgumentParser(
