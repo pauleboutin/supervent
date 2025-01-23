@@ -407,7 +407,7 @@ class EventGenerator:
                 
                 # Check percentage before generating dependent event
                 percentage = dependency['action'].get('percentage', 100)
-                if random.randint(1, 100) <= percentage:
+                if random.random() * 100 <= percentage:
                     # Generate the dependent event using the unified create_event
                     dependent_event = self.create_event(
                         source_name=dependency['action']['source'],
@@ -416,7 +416,7 @@ class EventGenerator:
                     )
                     events.append(dependent_event)
                     
-                    # Recursively proqcess dependencies for the new event
+                    # Recursively process dependencies for the new event
                     self.chain_events(dependent_event, events)
 
 
