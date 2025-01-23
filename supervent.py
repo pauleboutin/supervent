@@ -70,7 +70,7 @@ async def main():
             config,
             output_type=args.output,
             batch_size=args.batch_size,
-            output_file_path='-' if args.file == sys.stdout else args.file
+            output_file_path=args.file
         )
 
         # Set up signal handlers after creating the generator
@@ -112,52 +112,54 @@ async def main():
         end_time = datetime.fromisoformat(config['end_time'].replace('Z', '+00:00'))
         logging.debug(f"Start time: {start_time}, End time: {end_time}")
 
-        # Calculate chunks for multiprocessing
-        num_processes = max(cpu_count() - 1, 1)
-        logging.debug(f"Using {num_processes} processes for event generation.")
-        total_events = sum(vol['count'] for source in config['sources'].values() 
-                         for vol in source.get('volume', []))
-        chunk_size = total_events // (num_processes * 10)
+        # Calculate total events from config
+        total_events = sum(
+            sum(vol['count'] for vol in source.get('volume', []))
+            for source in config['sources'].values()
+        )
+        
+        # Use larger chunks for better efficiency
+        chunk_size = total_events // cpu_count()
         
         # Create time chunks
-        time_delta = (end_time - start_time) / num_processes
+        time_delta = (end_time - start_time) / cpu_count()
         time_chunks = [
             (start_time + (time_delta * i), 
              start_time + (time_delta * (i + 1)),
-             chunk_size)
-            for i in range(num_processes)
+             chunk_size)  # Each worker gets a fair share of the total
+            for i in range(cpu_count())
         ]
 
         # Prepare arguments for worker processes
         worker_args = [
             (config.get('event_frequencies', {}), config, args.output, args.batch_size, 
-             '-' if args.file == sys.stdout else args.file, time_chunk) 
+             args.file, time_chunk) 
             for time_chunk in time_chunks
         ]
 
         # Run event generation in parallel
-        with Pool(processes=num_processes) as pool:
+        with Pool(processes=cpu_count()) as pool:
             try:
-                results = pool.map_async(worker_generate_chunk, worker_args)
-                while not results.ready():
-                    if shutdown_requested.value:
-                        pool.terminate()
-                        pool.join()
-                        break
-                    await asyncio.sleep(0.1)
+                all_events = []
+                for chunk_events in pool.imap_unordered(worker_generate_chunk, worker_args):
+                    if chunk_events:
+                        all_events.extend(chunk_events)
+                        if len(all_events) >= args.batch_size:
+                            await generator.send_events_to_axiom(all_events)
+                            all_events = []
                 
-                if not shutdown_requested.value:
-                    results.get()  # Get results if not terminated
+                # Send any remaining events
+                if all_events:
+                    await generator.send_events_to_axiom(all_events)
+                    
             except KeyboardInterrupt:
                 logging.info("Shutdown requested. Cleaning up...")
             finally:
                 if 'pool' in locals():
                     pool.terminate()
                     pool.join()
-        logging.info("All worker processes completed.")
-        await generator.generate_events(start_time, end_time)
-        event_count += len(generator.processed_events)
 
+        # No need for separate generate_events call
         total_time = time.time() - start_generation_time
         logging.info(f"Generated {generator.total_events_sent} events in {total_time:.2f} seconds.")
 
@@ -180,10 +182,6 @@ async def main():
 def worker_generate_chunk(args):
     event_frequencies, config, output_type, batch_size, output_file_path, time_chunk = args
     
-    # Convert '-' to sys.stdout if needed
-    if output_file_path == '-':
-        output_file_path = sys.stdout
-        
     generator = EventGenerator(
         event_frequencies, 
         config, 
@@ -211,7 +209,7 @@ def worker_generate_chunk(args):
             source_chunk_size = int((source_volume / total_volume) * chunk_size)
             
             event_types = [et for et in source_config.get('event_types', []) 
-                          if et.get('create_from_scratch', False)]
+                          if et.get('create_from_scratch', True)]  # Changed to True
             
             if not event_types:
                 continue
@@ -228,9 +226,11 @@ def worker_generate_chunk(args):
                 )
                 events.append(event)
                 
+                # Process dependencies immediately for this event
+                generator.chain_events(event, events)
+                
                 if len(events) >= batch_size:
-                    # Process batch
-                    events = []
+                    return events
     except KeyboardInterrupt:
         return events
     
@@ -256,13 +256,43 @@ class EventGenerator:
         self.output_file_path = output_file_path
         self.num_workers = os.cpu_count() - 1 or 1
         self.upload_queue_size = self.upload_config.get('upload_queue_size', 1000)
+        self.network_interfaces = self.upload_config.get('network_interfaces', 4)
+        self.upload_semaphore = asyncio.Semaphore(self.network_interfaces * 8)  # Control concurrent connections per interface
 
     def generate_chunk(self, time_chunk):
         start_time, end_time, chunk_size = time_chunk
-        # Open the file within the method
-        with open(self.output_file_path, 'a') as output_file:
-            # Your event generation logic here
-            pass
+        events = []
+        
+        # First generate all primary (create_from_scratch) events
+        for source_name, source_config in self.config['sources'].items():
+            if shutdown_requested.value:
+                break
+                
+            event_types = [et for et in source_config.get('event_types', []) 
+                          if et.get('create_from_scratch', True)]  # Default to True
+            
+            if not event_types:
+                continue
+                
+            for _ in range(chunk_size):
+                if shutdown_requested.value:
+                    break
+                    
+                event_type = random.choice(event_types)
+                event = self.create_event(
+                    source_name=source_name,
+                    event_type=event_type['type'],
+                    timestamp=self.random_time_between(start_time, end_time)
+                )
+                events.append(event)
+                
+                # Process dependencies immediately for this event
+                self.chain_events(event, events)
+                
+                if len(events) >= self.batch_size:
+                    return events
+        
+        return events
 
     def signal_handler(self, signum, frame):
         """Handle the signal to exit gracefully."""
@@ -281,33 +311,69 @@ class EventGenerator:
         logging.debug("Event generation completed.")
 
     async def generate_source_events(self, source, event, start_time, end_time):
-        parameters = event['volume']
-        event_types = event['event_types']
+        gen_start = time.time()
+        total_events = 0
         
-        # Create a queue for generated events
-        queue = asyncio.Queue(maxsize=self.batch_size * 2)
+        # Create multiple upload queues, one per network interface
+        queues = [asyncio.Queue(maxsize=self.upload_queue_size) 
+                 for _ in range(self.network_interfaces)]
         
-        # Start upload task
-        upload_task = asyncio.create_task(self.upload_worker(queue, source))
+        # Performance counters
+        upload_times = [0.0] * self.network_interfaces
+        upload_counts = [0] * self.network_interfaces
+        
+        async def upload_with_timing(queue, interface_id):
+            nonlocal upload_times, upload_counts
+            # Configure TCP connector with interface-specific settings
+            connector = aiohttp.TCPConnector(
+                limit=self.connection_pool_size // self.network_interfaces,
+                force_close=True,
+                enable_cleanup_closed=True,
+                ssl=False
+            )
+            
+            async with aiohttp.ClientSession(
+                connector=connector,
+                json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder),
+                timeout=aiohttp.ClientTimeout(total=300)
+            ) as session:
+                while True:
+                    chunk = await queue.get()
+                    if chunk is None:
+                        break
+                    
+                    upload_start = time.time()
+                    async with self.upload_semaphore:
+                        await self.upload_chunk_with_retry(session, source, chunk, interface_id)
+                    upload_times[interface_id] += time.time() - upload_start
+                    upload_counts[interface_id] += len(chunk)
+                    queue.task_done()
+        
+        # Start upload tasks with timing
+        upload_tasks = [
+            asyncio.create_task(upload_with_timing(queue, interface_id))
+            for interface_id, queue in enumerate(queues)
+        ]
         
         # Start generation tasks
         generation_tasks = []
-        for volume in parameters:
+        for volume in event['volume']:
             count = int(volume.get('count', 0))
+            total_events += count  # Track total events
             distribution = volume['distribution']
             
-            # Split generation across multiple processes
-            chunk_size = count // self.num_workers
-            for worker_id in range(self.num_workers):
+            # Split generation across more workers
+            chunk_size = count // (self.num_workers * 2)
+            for worker_id in range(self.num_workers * 2):
                 task = asyncio.create_task(
                     self.generate_events_worker(
                         chunk_size, 
                         distribution, 
                         start_time, 
                         end_time,
-                        event_types,
+                        event['event_types'],
                         source,
-                        queue
+                        queues[worker_id % self.network_interfaces]
                     )
                 )
                 generation_tasks.append(task)
@@ -315,11 +381,23 @@ class EventGenerator:
         # Wait for generation to complete
         await asyncio.gather(*generation_tasks)
         
-        # Signal upload worker to finish
-        await queue.put(None)
+        # Signal upload workers to finish
+        for queue in queues:
+            await queue.put(None)
         
-        # Wait for upload to complete
-        await upload_task
+        # Wait for uploads to complete
+        await asyncio.gather(*upload_tasks)
+
+        # Enhanced timing logs
+        gen_time = time.time() - gen_start
+        logging.debug(f"Generation time: {gen_time:.2f}s")
+        logging.debug(f"Total events: {total_events}")
+        logging.debug(f"Events per second: {total_events/gen_time:.2f}")
+        for i in range(self.network_interfaces):
+            if upload_counts[i] > 0:
+                rate = upload_counts[i] / upload_times[i] if upload_times[i] > 0 else 0
+                logging.debug(f"Interface {i}: {upload_counts[i]} events in {upload_times[i]:.2f}s ({rate:.2f} events/s)")
+        logging.debug(f"Queue depths: {[q.qsize() for q in queues]}")
 
     async def generate_events_worker(self, count, distribution, start_time, end_time, 
                                    event_types, source, queue):
@@ -339,53 +417,61 @@ class EventGenerator:
         if events:
             await queue.put(events)
 
-    async def upload_worker(self, queue, source):
+    async def upload_worker(self, queue, source, interface_id):
+        # Configure TCP connector with interface-specific settings
+        connector = aiohttp.TCPConnector(
+            limit=self.connection_pool_size // self.network_interfaces,
+            force_close=True,  # Prevent connection pooling issues
+            enable_cleanup_closed=True,
+            ssl=False  # Axiom uses HTTPS but we'll handle SSL at higher level
+        )
+        
         async with aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=self.connection_pool_size),
-            json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder)  # Use standard json with encoder
+            connector=connector,
+            json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder),
+            timeout=aiohttp.ClientTimeout(total=300)  # Increased timeout for larger batches
         ) as session:
             while True:
                 chunk = await queue.get()
                 if chunk is None:
                     break
                 
-                # Clean events before upload
-                for event in chunk:
-                    if '_time' in event:
-                        event['_time'] = event['_time'].isoformat()  # Convert datetime to string
-                
-                # Get dataset from source configuration
-                source_config = self.config['sources'].get(source, {})
-                dataset = source_config.get('dataset', os.environ.get('AXIOM_DATASET'))
-                
-                await self.upload_chunk_with_retry(session, dataset, chunk, source)
+                async with self.upload_semaphore:  # Control concurrent uploads
+                    await self.upload_chunk_with_retry(session, source, chunk, interface_id)
                 queue.task_done()
 
-    async def upload_chunk_with_retry(self, session, dataset, chunk, source_type):
+    async def upload_chunk_with_retry(self, session, dataset, chunk, interface_id):
         """Retry logic for uploading chunks to Axiom"""
         api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
-        logging.debug(f"Sending {len(chunk)} events to dataset {dataset}")
+        
+        # Pre-process events before upload
+        processed_chunk = [{
+            k: v.isoformat() if isinstance(v, datetime) else v 
+            for k, v in event.items()
+        } for event in chunk]
+        
         headers = {
             "Authorization": f"Bearer {AXIOM_API_TOKEN}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-Interface-ID": str(interface_id)
         }
 
         for attempt in range(self.retry_attempts):
             try:
-                async with session.post(api_url, headers=headers, json=chunk) as response:
+                async with session.post(api_url, headers=headers, json=processed_chunk) as response:
                     if response.status == 200:
                         self.total_events_sent += len(chunk)
-                        logging.debug(f"Successfully sent {len(chunk)} events to Axiom dataset {dataset}")
+                        logging.debug(f"Interface {interface_id}: Sent {len(chunk)} events to {dataset}")
                         return
-                    elif response.status == 429:  # Rate limit
+                    elif response.status == 429:
                         retry_after = int(response.headers.get('Retry-After', self.retry_delay * (2 ** attempt)))
                         await asyncio.sleep(retry_after)
                     else:
                         error_text = await response.text()
-                        logging.warning(f"Upload attempt {attempt + 1} failed: {error_text}")
+                        logging.warning(f"Interface {interface_id}: Attempt {attempt + 1} failed: {error_text}")
                         await asyncio.sleep(self.retry_delay * (2 ** attempt))
             except Exception as e:
-                logging.warning(f"Upload attempt {attempt + 1} failed with error: {str(e)}")
+                logging.warning(f"Interface {interface_id}: Attempt {attempt + 1} failed: {str(e)}")
                 if attempt < self.retry_attempts - 1:
                     await asyncio.sleep(self.retry_delay * (2 ** attempt))
                 else:
@@ -523,6 +609,72 @@ class EventGenerator:
             else:
                 formatted_details[key] = value
         return message.format(**formatted_details)
+
+    def chain_events(self, event, events):
+        """Process dependent events based on trigger event."""
+        event_key = (event['source_type'], event['attributes']['request_id'])
+        if event_key in self.processed_events:
+            return
+        
+        self.processed_events.add(event_key)
+        
+        # Find and process all dependencies for this event
+        for dependency in self.dependencies:
+            if (dependency['trigger']['source'] == event['source_type'] and
+                dependency['trigger']['event_type'] == event['event_type']):
+                
+                # Check percentage before generating dependent event
+                percentage = dependency['action'].get('percentage', 100)
+                if random.random() * 100 <= percentage:
+                    dependent_event = self.create_event(
+                        source_name=dependency['action']['source'],
+                        event_type=dependency['action']['event_type'],
+                        parent_event=event
+                    )
+                    events.append(dependent_event)
+                    
+                    # Recursively process dependencies
+                    self.chain_events(dependent_event, events)
+
+    async def send_events_to_axiom(self, events):
+        """Send events to Axiom, grouped by dataset."""
+        events_by_source = {}
+        for event in events:
+            source_type = event.get('source_type')
+            if source_type not in events_by_source:
+                events_by_source[source_type] = []
+            events_by_source[source_type].append(event)
+
+        # Process each source's events separately
+        for source_type, source_events in events_by_source.items():
+            source_config = self.config['sources'].get(source_type, {})
+            # Use dataset from source config, no fallback
+            dataset = source_config['dataset']
+            
+            # Convert datetime objects to ISO format
+            for event in source_events:
+                if '_time' in event and isinstance(event['_time'], datetime):
+                    event['_time'] = event['_time'].isoformat()
+
+            # Process events in chunks
+            for chunk in self.chunk_list(source_events, self.batch_size):
+                self.clean_event_batch(chunk)
+                api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
+                logging.debug(f"Sending {len(chunk)} events to dataset {dataset}")
+                
+                connector = aiohttp.TCPConnector(
+                    limit=self.connection_pool_size,
+                    force_close=True,
+                    enable_cleanup_closed=True
+                )
+                
+                async with aiohttp.ClientSession(
+                    connector=connector,
+                    json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder)
+                ) as session:
+                    await self.upload_chunk_with_retry(session, dataset, chunk, 0)
+
+        events.clear()
 
 class DateTimeEncoder(standard_json.JSONEncoder):
     def default(self, obj):
