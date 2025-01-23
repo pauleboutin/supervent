@@ -232,108 +232,16 @@ def worker_generate_chunk(args):
         return events
     
     return events
-def worker_generate_chunk(args):
-    event_frequencies, config, output_type, batch_size, output_file_path, time_chunk = args
-    
-    # Convert '-' to sys.stdout if needed
-    if output_file_path == '-':
-        output_file_path = sys.stdout
-        
-    generator = EventGenerator(
-        event_frequencies, 
-        config, 
-        output_type=output_type, 
-        batch_size=batch_size, 
-        output_file_path=output_file_path
-    )
-    
-    start_time, end_time, chunk_size = time_chunk
-    events = []
-    
-    try:
-        # Calculate events per source based on volume configuration
-        total_volume = sum(
-            sum(vol['count'] for vol in source_config.get('volume', []))
-            for source_config in config['sources'].values()
-        )
-        
-        # Generate events for each source
-        for source_name, source_config in config['sources'].items():
-            if shutdown_requested.value:
-                break
-                
-            source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
-            source_chunk_size = int((source_volume / total_volume) * chunk_size)
-            
-            event_types = [et for et in source_config.get('event_types', []) 
-                          if et.get('create_from_scratch', False)]
-            
-            if not event_types:
-                continue
-                
-            for _ in range(source_chunk_size):
-                if shutdown_requested.value:
-                    break
-                    
-                event_type = random.choice(event_types)
-                event = generator.create_event(
-                    source_name=source_name,
-                    event_type=event_type['type'],
-                    timestamp=generator.random_time_between(start_time, end_time)
-                )
-                events.append(event)
-                
-                if len(events) >= batch_size:
-                    # Process batch
-                    events = []
-    except KeyboardInterrupt:
-        return events
-    
-    return events
-
-    
-    start_time, end_time, chunk_size = time_chunk
-    events = []
-    
-    # Calculate events per source based on volume configuration
-    total_volume = sum(
-        sum(vol['count'] for vol in source_config.get('volume', []))
-        for source_config in config['sources'].values()
-    )
-    
-    # Generate events for each source
-    for source_name, source_config in config['sources'].items():
-        source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
-        source_chunk_size = int((source_volume / total_volume) * chunk_size)
-        
-        event_types = [et for et in source_config.get('event_types', []) 
-                      if et.get('create_from_scratch', False)]
-        
-        if not event_types:
-            continue
-            
-        for _ in range(source_chunk_size):
-            event_type = random.choice(event_types)
-            event = generator.create_event(
-                source_name=source_name,
-                event_type=event_type['type'],
-                timestamp=generator.random_time_between(start_time, end_time)
-            )
-            events.append(event)
-            
-            if len(events) >= batch_size:
-                # Process batch
-                events = []
-    
-    return events
-
-
-
 
 class EventGenerator:
     def __init__(self, event_frequencies, config, output_type='axiom', batch_size=DEFAULT_BATCH_SIZE, output_file_path=None):
         self.event_frequencies = event_frequencies
         self.config = config
+        self.upload_config = config.get('upload_config', {}).get('axiom', {})
+        self.max_concurrent_uploads = self.upload_config.get('max_concurrent_uploads', 8)
+        self.connection_pool_size = self.upload_config.get('connection_pool_size', 100)
+        self.retry_attempts = self.upload_config.get('retry_attempts', 3)
+        self.retry_delay = self.upload_config.get('retry_delay', 1.0)
         self.dependencies = config.get('dependencies', [])
         self.processed_events = set()
         self.total_events_sent = 0 
@@ -656,7 +564,6 @@ class EventGenerator:
 
     
     async def send_events_to_axiom(self, events):
-        # First, group events by source_type (and thus by dataset)
         events_by_source = {}
         for event in events:
             source_type = event.get('source_type')
@@ -664,10 +571,12 @@ class EventGenerator:
                 events_by_source[source_type] = []
             events_by_source[source_type].append(event)
 
-        # Process each source's events separately
-        async with aiohttp.ClientSession() as session:
+        # Create connection pool for reuse
+        connector = aiohttp.TCPConnector(limit=self.connection_pool_size)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            upload_tasks = []
+            
             for source_type, source_events in events_by_source.items():
-                # Get source configuration and dataset
                 source_config = self.config['sources'].get(source_type, {})
                 dataset = source_config.get('dataset', os.environ.get('AXIOM_DATASET'))
                 
@@ -676,28 +585,58 @@ class EventGenerator:
                     if '_time' in event and isinstance(event['_time'], datetime):
                         event['_time'] = event['_time'].isoformat()
 
-                # Process events in chunks
-                for chunk in self.chunk_list(source_events, self.batch_size):
-                    self.clean_event_batch(chunk) #remove fields we do not want to publish in the event, e.g. dataset
-                    api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
-                    logging.debug(f"Sending events to dataset: {dataset} for source_type: {source_type}")
+                # Split into chunks and create upload tasks
+                chunks = list(self.chunk_list(source_events, self.batch_size))
+                for chunk in chunks:
+                    self.clean_event_batch(chunk)
+                    upload_tasks.append(
+                        self.upload_chunk_with_retry(
+                            session, 
+                            dataset, 
+                            chunk, 
+                            source_type
+                        )
+                    )
                     
-                    async with session.post(
-                        api_url,
-                        headers={
-                            "Authorization": f"Bearer {AXIOM_API_TOKEN}",
-                            "Content-Type": "application/json"
-                        },
-                        json=chunk
-                    ) as response:
-                        if response.status != 200:
-                            logging.critical(f"Failed to send events to Axiom dataset {dataset}: {await response.text()}")
-                        else:
-                            self.total_events_sent += len(chunk)
-                            logging.debug(f"Successfully sent {len(chunk)} events to Axiom dataset {dataset}")
+                    # Process uploads in parallel but with concurrency limit
+                    if len(upload_tasks) >= self.max_concurrent_uploads:
+                        await asyncio.gather(*upload_tasks)
+                        upload_tasks = []
+            
+            # Process any remaining upload tasks
+            if upload_tasks:
+                await asyncio.gather(*upload_tasks)
 
         events.clear()
 
+    async def upload_chunk_with_retry(self, session, dataset, chunk, source_type):
+        api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
+        headers = {
+            "Authorization": f"Bearer {AXIOM_API_TOKEN}",
+            "Content-Type": "application/json"
+        }
+
+        for attempt in range(self.retry_attempts):
+            try:
+                async with session.post(api_url, headers=headers, json=chunk) as response:
+                    if response.status == 200:
+                        self.total_events_sent += len(chunk)
+                        logging.debug(f"Successfully sent {len(chunk)} events to Axiom dataset {dataset}")
+                        logging.debug(f"Response headers: {dict(response.headers)}")
+                        return
+                    elif response.status == 429:  # Rate limit
+                        retry_after = int(response.headers.get('Retry-After', self.retry_delay * (2 ** attempt)))
+                        await asyncio.sleep(retry_after)
+                    else:
+                        error_text = await response.text()
+                        logging.warning(f"Upload attempt {attempt + 1} failed: {error_text}")
+                        await asyncio.sleep(self.retry_delay * (2 ** attempt))
+            except Exception as e:
+                logging.warning(f"Upload attempt {attempt + 1} failed with error: {str(e)}")
+                if attempt < self.retry_attempts - 1:
+                    await asyncio.sleep(self.retry_delay * (2 ** attempt))
+                else:
+                    raise
 
     def chunk_list(self, lst, n):
         """Yield successive n-sized chunks from lst."""

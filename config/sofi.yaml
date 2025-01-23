@@ -2,6 +2,14 @@
 # see count: for each of sources (web_server, app_server, mysql, ec2, k8s, rds, okta_logs) for number of events in that period
 # at the very bottom, perentage:1 means that for every 100 order_create events from app_server, there will be one error event from mysql
 
+upload_config:
+  axiom:
+    max_concurrent_uploads: 8  # Default to 8 concurrent upload streams
+    connection_pool_size: 100  # Connections to keep alive per worker
+    batch_size: 100000        # Events per upload request
+    retry_attempts: 3         # Number of times to retry failed uploads
+    retry_delay: 1.0         # Base delay (seconds) between retries
+
 start_time: "2023-01-01T00:00:00Z"
 end_time: "2025-01-15T11:00:00Z"
 
