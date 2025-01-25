@@ -5,13 +5,13 @@
 
 upload_config:
   axiom:
-    max_concurrent_uploads: 128     # Double it
+    max_concurrent_uploads: 256     # More parallel uploads
     connection_pool_size: 2000      # Double it
-    batch_size: 1000000            # Much larger batches
+    batch_size: 500000             # Balance between memory and throughput
     retry_attempts: 3
     retry_delay: 1.0
-    upload_queue_size: 20000       # Double buffer
-    network_interfaces: 15         # Maximum available on c6gn.16xlarge
+    upload_queue_size: 50000       # Larger queue for bursts
+    network_interfaces: 15          # Use all interfaces
 
 start_time: "2024-12-09T10:00:00Z"
 end_time: "2024-12-09T11:00:00Z"

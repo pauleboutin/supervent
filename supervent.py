@@ -303,13 +303,21 @@ class EventGenerator:
         sys.stderr.flush()
 
     async def generate_events(self, start_time, end_time):
+        """Parallelize event generation across all cores"""
         logging.debug("Starting event generation...")
         self.start_generation_time = time.time()
+        chunk_size = (end_time - start_time) / cpu_count()
+        
         with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
             loop = asyncio.get_event_loop()
             futures = [
-                loop.run_in_executor(executor, self.generate_chunk, chunk)
-                for chunk in self.create_time_chunks(start_time, end_time)
+                loop.run_in_executor(
+                    executor, 
+                    self.generate_chunk, 
+                    (start_time + timedelta(seconds=i * chunk_size), 
+                     start_time + timedelta(seconds=(i + 1) * chunk_size))
+                )
+                for i in range(cpu_count())
             ]
             results = await asyncio.gather(*futures)
         logging.debug("Event generation completed.")
