@@ -1,5 +1,15 @@
-start_time: "2025-01-15T10:00:00Z"
-end_time: "2025-01-16T11:00:00Z"
+upload_config:
+  axiom:
+    max_concurrent_uploads: 512
+    connection_pool_size: 4000
+    batch_size: 1000000
+    retry_attempts: 3
+    retry_delay: 1.0
+    upload_queue_size: 100000
+    network_interfaces: 15
+
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
 
 response_time:
   min: 100
@@ -75,37 +85,14 @@ acceptable_values:
 sources:
   web_server:
     description: "Apache HTTP Server 2.4.62"
+    dataset: "supervent"
     attributes:
       method:
         type: "choice"
         values: ['GET', 'POST', 'PUT', 'DELETE']
       path:
         type: "choice"
-        values: [
-          '/api/v1/users', 
-          '/api/v1/orders', 
-          '/api/v1/products', 
-          '/health', 
-          '/metrics',
-          '/api/v1/auth/login',
-          '/api/v1/auth/logout',
-          '/api/v1/cart',
-          '/api/v1/wishlist',
-          '/api/v1/reviews',
-          '/api/v1/categories',
-          '/api/v1/search',
-          '/api/v1/profile',
-          '/api/v1/notifications',
-          '/api/v1/payments',
-          '/api/v1/shipping',
-          '/api/v1/inventory',
-          '/api/v2/recommendations',
-          '/api/v1/analytics',
-          '/status'
-        ]
-      protocol:
-        type: "choice"
-        values: ['HTTP/1.1', 'HTTP/2.0']
+        values: ['/api/v1/users', '/api/v1/orders', '/api/v1/products']
       status:
         type: "choice"
         values: [200, 201, 400, 401, 403, 404, 500]
@@ -113,38 +100,13 @@ sources:
         type: "integer"
         min: 500
         max: 5000
-      client_ip:
-        type: "string"
-        generator: "client_ip"
-      user_agent:
-        type: "choice"
-        values: [
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15',
-          'Mozilla/5.0 (iPad; CPU OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
-          'Mozilla/5.0 (Android 12; Mobile; rv:68.0) Gecko/68.0 Firefox/96.0',
-          'Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Mobile Safari/537.36',
-          'Mozilla/5.0 (Linux; Android 10; SAMSUNG SM-T510) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/13.0 Chrome/83.0.4103.106 Safari/537.36',
-          'Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.104 Mobile Safari/537.36',
-          'Mozilla/5.0 (iPad; CPU OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
-          'Mozilla/5.0 (Linux; Android 11; SM-T870 Build/RP1A.200720.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.104 Safari/537.36'
-        ]
-      referer:
-        type: "choice"
-        values: ['-', 'https://example.com', 'https://google.com']
-      response_time:
-        type: "integer"
-        min: 100
-        max: 5000
     volume:
       - pattern: "24/7"
-        count: 1000000
-        distribution: "gaussian"
-        details: {}
+        count: 10000000
+        distribution: "random"
     event_types:
       - type: "access"
-        format: "{client_ip} - - [{timestamp}] \"{method} {path} {protocol}\" {status} {bytes} \"{referer}\" \"{user_agent}\""
+        format: "{method} {path} {status} {bytes}"
         create_from_scratch: true
 
 dependencies: []
