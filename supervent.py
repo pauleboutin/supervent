@@ -652,10 +652,14 @@ class EventGenerator:
     async def send_events_to_axiom(self, events):
         """Send events to Axiom, grouped by dataset."""
         events_by_source = {}
+        event_buffers = {}  # Buffer for each dataset
+        batch_size = self.upload_config.get('batch_size', 500000)
+        
         for event in events:
             source_type = event.get('source_type')
             if source_type not in events_by_source:
                 events_by_source[source_type] = []
+                event_buffers[source_type] = []
             events_by_source[source_type].append(event)
 
         # Track which interface to use next
@@ -671,12 +675,13 @@ class EventGenerator:
             for event in source_events:
                 if '_time' in event and isinstance(event['_time'], datetime):
                     event['_time'] = event['_time'].isoformat()
+                event_buffers[source_type].append(event)
 
-            # Process events in chunks, distributing across interfaces
-            for chunk in self.chunk_list(source_events, self.batch_size):
-                self.clean_event_batch(chunk)
+            # Send when buffer reaches batch size
+            if len(event_buffers[source_type]) >= batch_size:
+                self.clean_event_batch(event_buffers[source_type])
                 api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
-                logging.debug(f"Sending {len(chunk)} events to dataset {dataset} using interface {interface_id}")
+                logging.debug(f"Sending {len(event_buffers[source_type])} events to dataset {dataset} using interface {interface_id}")
                 
                 connector = aiohttp.TCPConnector(
                     limit=self.connection_pool_size,
@@ -688,11 +693,26 @@ class EventGenerator:
                     connector=connector,
                     json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder)
                 ) as session:
-                    await self.upload_chunk_with_retry(session, dataset, chunk, interface_id)
+                    await self.upload_chunk_with_retry(session, dataset, event_buffers[source_type], interface_id)
                 
                 # Round-robin through interfaces
                 interface_id = (interface_id + 1) % self.network_interfaces
                 logging.debug(f"Next interface_id will be {interface_id}")
+                event_buffers[source_type] = []  # Clear buffer after sending
+
+        # Send any remaining events in buffers
+        for source_type, buffer in event_buffers.items():
+            if buffer:
+                dataset = self.config['sources'][source_type]['dataset']
+                self.clean_event_batch(buffer)
+                connector = aiohttp.TCPConnector(
+                    limit=self.connection_pool_size,
+                    force_close=True,
+                    enable_cleanup_closed=True
+                )
+                async with aiohttp.ClientSession(connector=connector) as session:
+                    await self.upload_chunk_with_retry(session, dataset, buffer, interface_id)
+                    interface_id = (interface_id + 1) % self.network_interfaces
 
         events.clear()
 
