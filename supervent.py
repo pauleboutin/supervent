@@ -186,7 +186,7 @@ def worker_generate_chunk(args):
         event_frequencies, 
         config, 
         output_type=output_type, 
-        batch_size=batch_size, 
+        batch_size=target_batch_size,
         output_file_path=output_file_path
     )
     
@@ -194,19 +194,12 @@ def worker_generate_chunk(args):
     events = []
     
     try:
-        # Calculate events per source based on volume configuration
-        total_volume = sum(
-            sum(vol['count'] for vol in source_config.get('volume', []))
-            for source_config in config['sources'].values()
-        )
-        
         # Generate events for each source
         for source_name, source_config in config['sources'].items():
             if shutdown_requested.value:
                 break
                 
             source_volume = sum(vol['count'] for vol in source_config.get('volume', []))
-            source_chunk_size = int((source_volume / total_volume) * chunk_size)
             
             event_types = [et for et in source_config.get('event_types', []) 
                           if et.get('create_from_scratch', True)]
@@ -214,7 +207,7 @@ def worker_generate_chunk(args):
             if not event_types:
                 continue
                 
-            for _ in range(source_chunk_size):
+            while len(events) < target_batch_size:
                 if shutdown_requested.value:
                     break
                     
@@ -225,9 +218,6 @@ def worker_generate_chunk(args):
                     timestamp=generator.random_time_between(start_time, end_time)
                 )
                 events.append(event)
-                
-                # Process dependencies immediately for this event
-                generator.chain_events(event, events)
                 
                 if len(events) >= target_batch_size:
                     return events
