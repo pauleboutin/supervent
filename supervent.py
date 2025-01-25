@@ -144,7 +144,7 @@ async def main():
                 for chunk_events in pool.imap_unordered(worker_generate_chunk, worker_args):
                     if chunk_events:
                         all_events.extend(chunk_events)
-                        if len(all_events) >= args.batch_size:
+                        if len(all_events) >= generator.upload_config.get('batch_size', 500000):
                             await generator.send_events_to_axiom(all_events)
                             all_events = []
                 
