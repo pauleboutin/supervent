@@ -305,9 +305,13 @@ class EventGenerator:
     async def generate_events(self, start_time, end_time):
         logging.debug("Starting event generation...")
         self.start_generation_time = time.time()
-        for source, event in self.config['sources'].items():
-            logging.debug(f"Generating events for source: {source}")
-            await self.generate_source_events(source, event, start_time, end_time)
+        with ProcessPoolExecutor(max_workers=cpu_count()) as executor:
+            loop = asyncio.get_event_loop()
+            futures = [
+                loop.run_in_executor(executor, self.generate_chunk, chunk)
+                for chunk in self.create_time_chunks(start_time, end_time)
+            ]
+            results = await asyncio.gather(*futures)
         logging.debug("Event generation completed.")
 
     async def generate_source_events(self, source, event, start_time, end_time):
@@ -478,9 +482,10 @@ class EventGenerator:
                     raise
 
     def chunk_list(self, lst, n):
-        """Yield successive n-sized chunks from lst."""
-        for i in range(0, len(lst), n):
-            yield lst[i:i + n]
+        """Yield successive n-sized chunks from lst using numpy."""
+        arr = np.array(lst)
+        for i in range(0, len(arr), n):
+            yield arr[i:i + n].tolist()
 
     async def send_events_to_postgres(self, events):
             self.clean_event_batch(events)  # Remove fields we do not want to publish in the event, e.g. dataset
@@ -645,10 +650,13 @@ class EventGenerator:
                 events_by_source[source_type] = []
             events_by_source[source_type].append(event)
 
+        # Track which interface to use next
+        interface_id = 0
+        logging.debug(f"Starting with interface_id {interface_id}, total interfaces: {self.network_interfaces}")
+
         # Process each source's events separately
         for source_type, source_events in events_by_source.items():
             source_config = self.config['sources'].get(source_type, {})
-            # Use dataset from source config, no fallback
             dataset = source_config['dataset']
             
             # Convert datetime objects to ISO format
@@ -656,11 +664,11 @@ class EventGenerator:
                 if '_time' in event and isinstance(event['_time'], datetime):
                     event['_time'] = event['_time'].isoformat()
 
-            # Process events in chunks
+            # Process events in chunks, distributing across interfaces
             for chunk in self.chunk_list(source_events, self.batch_size):
                 self.clean_event_batch(chunk)
                 api_url = f"https://api.axiom.co/v1/datasets/{dataset}/ingest"
-                logging.debug(f"Sending {len(chunk)} events to dataset {dataset}")
+                logging.debug(f"Sending {len(chunk)} events to dataset {dataset} using interface {interface_id}")
                 
                 connector = aiohttp.TCPConnector(
                     limit=self.connection_pool_size,
@@ -672,7 +680,11 @@ class EventGenerator:
                     connector=connector,
                     json_serialize=lambda x: standard_json.dumps(x, cls=DateTimeEncoder)
                 ) as session:
-                    await self.upload_chunk_with_retry(session, dataset, chunk, 0)
+                    await self.upload_chunk_with_retry(session, dataset, chunk, interface_id)
+                
+                # Round-robin through interfaces
+                interface_id = (interface_id + 1) % self.network_interfaces
+                logging.debug(f"Next interface_id will be {interface_id}")
 
         events.clear()
 
