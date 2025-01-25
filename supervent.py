@@ -181,7 +181,7 @@ async def main():
     
 def worker_generate_chunk(args):
     event_frequencies, config, output_type, batch_size, output_file_path, time_chunk = args
-    
+    target_batch_size = config.get('upload_config', {}).get('axiom', {}).get('batch_size', 1000000)
     generator = EventGenerator(
         event_frequencies, 
         config, 
@@ -209,7 +209,7 @@ def worker_generate_chunk(args):
             source_chunk_size = int((source_volume / total_volume) * chunk_size)
             
             event_types = [et for et in source_config.get('event_types', []) 
-                          if et.get('create_from_scratch', True)]  # Changed to True
+                          if et.get('create_from_scratch', True)]
             
             if not event_types:
                 continue
@@ -229,7 +229,7 @@ def worker_generate_chunk(args):
                 # Process dependencies immediately for this event
                 generator.chain_events(event, events)
                 
-                if len(events) >= batch_size:
+                if len(events) >= target_batch_size:
                     return events
     except KeyboardInterrupt:
         return events
