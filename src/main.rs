@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::env;
-use tokio::sync::mpsc;
+use tokio::sync::broadcast;
 use std::time::Instant;
 use std::time::Duration;
 use lazy_static::lazy_static;
@@ -38,7 +38,7 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = mpsc::channel::<Vec<Event>>(1000);
+    let (tx, _rx) = broadcast::channel::<Vec<Event>>(1000);
     let start = Instant::now();
     let mut total_events = 0;
 
@@ -58,9 +58,9 @@ async fn main() {
     // Spawn one uploader per NIC
     let mut upload_handles = vec![];
     for interface in 0..n_interfaces {
-        let mut rx = rx.clone();
+        let mut rx = tx.subscribe();
         let upload_handle = tokio::spawn(async move {
-            while let Some(events) = rx.recv().await {
+            while let Ok(events) = rx.recv().await {
                 upload_events(&events, interface).await;
                 total_events += events.len();
                 drop(events);
@@ -84,7 +84,7 @@ async fn main() {
     }
 }
 
-async fn generate_events(tx: mpsc::Sender<Vec<Event>>) {
+async fn generate_events(tx: broadcast::Sender<Vec<Event>>) {
     let mut events = Vec::with_capacity(1_000_000);
     let start_time = Utc::now();
     
