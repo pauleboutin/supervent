@@ -42,12 +42,12 @@ async fn main() {
     let start = Instant::now();
     let mut total_events = 0;
 
-    // Start with 1 interface for Mac testing
-    let _n_interfaces = 1;
+    // Use all AWS NICs
+    let n_interfaces = 15;
 
-    // Spawn generator threads (use fewer on Mac)
+    // Use all AWS cores
     let mut handles = vec![];
-    for _ in 0..4 {  // Use 4 cores for Mac testing
+    for _ in 0..64 {  // Use all AWS cores
         let tx = tx.clone();
         let handle = tokio::spawn(async move {
             generate_events(tx).await;
@@ -55,29 +55,37 @@ async fn main() {
         handles.push(handle);
     }
 
-    // Spawn uploader thread
-    let upload_handle = tokio::spawn(async move {
-        while let Some(events) = rx.recv().await {
-            upload_events(&events, 0).await;
-            total_events += events.len();
-            
-            if total_events % 1_000_000 == 0 {
-                let elapsed = start.elapsed().as_secs_f64();
-                println!("Generated {} events in {:.2} seconds ({:.2} events/sec)",
-                    total_events, elapsed, total_events as f64 / elapsed);
+    // Spawn one uploader per NIC
+    let mut upload_handles = vec![];
+    for interface in 0..n_interfaces {
+        let mut rx = rx.clone();
+        let upload_handle = tokio::spawn(async move {
+            while let Some(events) = rx.recv().await {
+                upload_events(&events, interface).await;
+                total_events += events.len();
+                drop(events);
+                
+                if total_events % 1_000_000 == 0 {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    println!("Generated {} events in {:.2} seconds ({:.2} events/sec)",
+                        total_events, elapsed, total_events as f64 / elapsed);
+                }
             }
-        }
-    });
+        });
+        upload_handles.push(upload_handle);
+    }
 
     // Wait for completion
     for handle in handles {
         handle.await.unwrap();
     }
-    upload_handle.await.unwrap();
+    for upload_handle in upload_handles {
+        upload_handle.await.unwrap();
+    }
 }
 
 async fn generate_events(tx: mpsc::Sender<Vec<Event>>) {
-    let mut events = Vec::with_capacity(5_000_000);
+    let mut events = Vec::with_capacity(1_000_000);
     let start_time = Utc::now();
     
     loop {
@@ -100,7 +108,7 @@ async fn generate_events(tx: mpsc::Sender<Vec<Event>>) {
             if tx.send(events).await.is_err() {
                 break;
             }
-            events = Vec::with_capacity(5_000_000);
+            events = Vec::with_capacity(1_000_000);
         }
     }
 }
