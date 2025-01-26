@@ -1,17 +1,46 @@
-
 # SuperVent Performance Optimization Plan
 
+## Migration Overview
+Moving from Python to Rust for:
+- 100-1000x faster event generation
+- Direct hardware access
+- Zero-cost abstractions
+- Predictable performance
+
 ## Current State
-- Python-based event generator
+- Python implementation limitations:
+  - GIL bottlenecks
+  - High memory allocation overhead
+  - String processing inefficiency
+  - Network library overhead
 - ~35K events/second on c6gn.16xlarge
 - Multiple configuration formats
 - Complex dependency chains
 
 ## Target State
+- Complete rewrite in Rust
 - 10M+ events/second baseline
 - 50M+ events/second peak
 - Sub-millisecond latency
 - Full NIC saturation (15 × 25 Gbps)
+
+## Why Rust?
+1. Performance
+   - Zero-cost abstractions
+   - No garbage collection
+   - LLVM optimizations
+   - Direct hardware access
+
+2. Safety
+   - Memory safety without runtime cost
+   - Thread safety guarantees
+   - No null pointer exceptions
+
+3. Modern Features
+   - Async/await
+   - Zero-copy parsing
+   - SIMD support
+   - Excellent tooling
 
 ## Architecture Design
 
