@@ -6,7 +6,7 @@ use std::time::Instant;
 use std::time::Duration;
 use lazy_static::lazy_static;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct Event {
     _time: DateTime<Utc>,
     source: String,
@@ -14,7 +14,7 @@ struct Event {
     attributes: EventAttributes,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 struct EventAttributes {
     method: &'static str,
     path: &'static str,
@@ -105,7 +105,7 @@ async fn generate_events(tx: broadcast::Sender<Vec<Event>>) {
         events.push(event);
         
         if events.len() >= 1_000_000 {
-            if tx.send(events).await.is_err() {
+            if tx.send(events).is_err() {
                 break;
             }
             events = Vec::with_capacity(1_000_000);
