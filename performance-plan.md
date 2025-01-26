@@ -142,6 +142,41 @@ struct Uploader {
 3. Dependency chains
 4. Advanced monitoring
 
+## Initial Prototype
+Focus on raw speed with minimal config:
+```rust
+fn main() {
+    // Pre-allocate 1GB event buffer
+    let mut events = Vec::with_capacity(1_000_000);
+    
+    // One generator per core
+    let generators: Vec<_> = (0..num_cpus::get())
+        .map(|core_id| {
+            thread::spawn(move || {
+                // Pin to core
+                core_affinity::set_for_current(core_id);
+                generate_events()
+            })
+        })
+        .collect();
+    
+    // One uploader per NIC
+    let uploaders: Vec<_> = (0..15)
+        .map(|nic_id| {
+            thread::spawn(move || {
+                upload_events(nic_id)
+            })
+        })
+        .collect();
+}
+```
+
+Goals:
+1. Validate raw performance (~1M events/sec/core)
+2. Test NIC saturation
+3. Measure memory bandwidth
+4. Profile bottlenecks
+
 ## Configuration Example
 ```yaml
 runtime:
