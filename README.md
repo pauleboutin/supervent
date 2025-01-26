@@ -104,4 +104,16 @@ python supervent.py -c config/config.yaml --output axiom -d your_dataset -t your
 The generator will create events based on your configuration file, including dependent events through configured event chains. Progress and completion information will be displayed in the console.
 ```
 
+## Performance Tuning
+
+For maximum throughput:
+
+1. Use webaccess.yaml config for single-source testing
+2. Set batch_size to 1000000 for optimal HTTP efficiency
+3. Ensure network interfaces match available ENIs (15 for c6gn.16xlarge)
+4. Monitor with:
+   ```bash
+   python supervent.py -c config/webaccess.yaml -l debug
+   ```
+
 
