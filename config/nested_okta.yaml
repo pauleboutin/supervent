@@ -1,0 +1,105 @@
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+
+sources:
+  okta_logs:
+    description: "Okta System Logs"
+    dataset: "okta"
+    volume:
+    - pattern: "24/7"
+      count: 100
+      distribution: "gaussian"
+    attributes:
+      user_login:
+        actor:
+          id: string
+          type: string
+          alternateId: string
+          displayName: string
+        client:
+          userAgent:
+            browser: string
+            os: string
+            rawUserAgent: string
+          device: string
+          ipAddress: ipv4
+          geographicalContext:
+            city: string
+            state: string
+            country: string
+            postalCode: string
+            geolocation:
+              lat: float
+              lon: float
+        authenticationContext:
+          authenticationProvider: string
+          credentialType: string
+          interface: string
+          authenticationStep: integer
+      security_threat:
+        actor:
+          id: string
+          type: string
+          alternateId: email
+          displayName: string
+        client:
+          userAgent:
+            browser: string
+            os: string
+            rawUserAgent: string
+          device: string
+          ipAddress: ipv4
+        outcome:
+          result: string
+          reason: string
+      group_membership:
+        actor:
+          id: string
+          type: string
+          alternateId: email
+          displayName: string
+        target:
+          user:
+            id: string
+            type: string
+            alternateId: email
+            displayName: string
+          group:
+            id: string
+            type: string
+            displayName: string
+    event_types:
+      - type: "user_login"
+        attribute_structure: "user_login"
+        format: >-
+          {eventId} {timestamp} user.session.start {severity} 
+          actor={actor.id},{actor.type},{actor.alternateId},{actor.displayName} 
+          client={client.userAgent.browser},{client.userAgent.os},{client.ipAddress} 
+          auth={authenticationContext.authenticationProvider},{authenticationContext.credentialType}
+          geo={client.geographicalContext.city},{client.geographicalContext.state},{client.geographicalContext.geolocation.lat},{client.geographicalContext.geolocation.lon}
+        create_from_scratch: true
+
+      - type: "security_threat"
+        attribute_structure: "security_threat"
+        format: >-
+          {eventId} {timestamp} security.threat.detected {severity} 
+          actor={actor.id},{actor.type},{actor.alternateId},{actor.displayName}
+          client={client.userAgent.browser},{client.userAgent.os},{client.ipAddress}
+          outcome={outcome.result},{outcome.reason}
+        create_from_scratch: true
+
+      - type: "group_membership"
+        attribute_structure: "group_membership"
+        format: >-
+          {eventId} {timestamp} group.user.add {severity} 
+          actor={actor.id},{actor.type},{actor.alternateId},{actor.displayName}
+          target_user={target.user.id},{target.user.type},{target.user.alternateId}
+          target_group={target.group.id},{target.group.type},{target.group.displayName}
+        create_from_scratch: true
+
+
+

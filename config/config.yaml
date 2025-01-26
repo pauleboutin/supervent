@@ -1,0 +1,224 @@
+# basic 3-tier architecture with dependencies between web server, app server, and database server
+# web server generates access logs
+# app server generates info logs after web server access events
+# database server generates query logs after app server info events
+
+upload_config:
+  axiom:
+    max_concurrent_uploads: 512     # Much more parallel uploads
+    connection_pool_size: 4000      # Much larger pool
+    batch_size: 1000000            # Maximum batch size
+    retry_attempts: 3
+    retry_delay: 1.0
+    upload_queue_size: 100000      # Much larger queue
+    network_interfaces: 15          # Use all interfaces
+
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+
+acceptable_values:
+  # method: ['GET', 'POST', 'PUT', 'DELETE']
+  path: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/health', '/metrics']
+  protocol: ['HTTP/1.1', 'HTTP/2.0']
+  status: [200, 201, 400, 401, 403, 404, 500]
+  user_agent: [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+  ]
+  referer: ['-', 'https://example.com', 'https://google.com']
+  level: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+  service: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+  operation: ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN']
+  table: ['users', 'orders', 'products', 'categories', 'payments']
+
+sources:
+  web_server:
+    description: "Apache HTTP Server 2.4.62"
+    dataset: "supervent"
+    attributes:
+      method:
+        type: "choice"
+        values: ['GET', 'POST', 'PUT', 'DELETE']
+      path:
+        type: "choice"
+        values: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/health', '/metrics']
+      protocol:
+        type: "choice"
+        values: ['HTTP/1.1', 'HTTP/2.0']
+      status:
+        type: "choice"
+        values: [200, 201, 400, 401, 403, 404, 500]
+      bytes:
+        type: "integer"
+        min: 500
+        max: 5000
+      client_ip:
+        type: "string"
+        generator: "client_ip"
+      user_agent:
+        type: "choice"
+        values: [
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'
+        ]
+      referer:
+        type: "choice"
+        values: ['-', 'https://example.com', 'https://google.com']
+      response_time:
+        type: "integer"
+        min: 100
+        max: 5000
+    volume:
+      - pattern: "24/7"
+        count: 1000000
+        distribution: "gaussian"
+    event_types:
+      - type: "access"
+        format: "{client_ip} - - [{timestamp}] \"{method} {path} {protocol}\" {status} {bytes} \"{referer}\" \"{user_agent}\""
+        create_from_scratch: true
+
+  app_server:
+    description: "Express.js 4.17.1"
+    dataset: "supervent"
+    attributes:
+      level:
+        type: "choice"
+        values: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+      service:
+        type: "choice"
+        values: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+      response_time:
+        type: "integer"
+        min: 100
+        max: 5000
+    volume: []
+    event_types:
+      - type: "info"
+        format: "[{timestamp}] {level} [{service}] - Request processed in {response_time}ms"
+        create_from_scratch: false
+
+  database_server:
+    description: "MySQL 8.0.26"
+    dataset: "supervent"
+    attributes:
+      operation:
+        type: "choice"
+        values: ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'JOIN']
+      table:
+        type: "choice"
+        values: ['users', 'orders', 'products', 'categories', 'payments']
+      duration:
+        type: "integer"
+        min: 1
+        max: 1000
+    volume: []
+    timestamp:
+      type: "timestamp"
+      format: "%Y-%m-%d %H:%M:%S.%L"
+    thread_id:
+      type: "choice"
+      values: ["12345", "12346", "12347", "12348", "12349", "12350", "12351", "12352", "12353", "12354", "12355", "12356", "12357", "12358", "12359", "12360", "12361", "12362", "12363", "12364", "12365", "12366", "12367", "12368", "12369", "12370", "12371", "12372", "12373", "12374", "23456", "23457", "23458", "23459", "23460", "23461", "23462", "23463", "23464", "23465", "23466", "23467", "23468", "23469", "23470", "23471", "23472", "23473", "23474", "23475", "23476", "23477", "23478", "23479", "23480", "23481", "23482", "23483", "23484", "23485", "23486", "23487", "23488", "23489", "23490", "23491", "23492", "23493", "23494", "23495", "23496", "23497", "23498", "23499", "23500", "23501", "23502", "23503", "23504", "23505", "23506", "23507", "23508", "23509", "23510", "23511", "23512", "23513", "23514", "23515"]
+    error_level:
+      type: "choice"
+      values: ["Error", "Warning"]
+    subsystem:
+      type: "choice"
+      values: ["InnoDB", "Server", "Query", "Performance", "Security", "Storage", "Replication"]
+    message:
+          type: "choice"
+          values: [
+            "Deadlock found when trying to get lock; try restarting transaction",
+            "InnoDB: Cannot create temporary table",
+            "Too many connections",
+            "You have an error in your SQL syntax",
+            "Using temporary table for subquery result",
+            "Can't write; duplicate key in table 'users'",
+            "Host '192.168.1.100' is blocked because of many connection errors",
+            "Creating index without full text support",
+            "Disk full",
+            "Could not initialize master info structure",
+            "Foreign key constraint fails",
+            "Truncated incorrect DOUBLE value",
+            "Access denied for user 'app_user'@'localhost'",
+            "Read page with wrong checksum",
+            "Got a packet bigger than 'max_allowed_packet'",
+            "Multiple tables used in query without index",
+            "Lock wait timeout exceeded",
+            "Slave SQL thread stopped due to error",
+            "Got error 28 from storage engine",
+            "Query execution was interrupted",
+            "Table corruption",
+            "SSL connection error",
+            "This table type requires a primary key",
+            "Column count of mysql.proc is wrong",
+            "Subquery returns more than 1 row",
+            "Invalid default value for datetime column 'created_at'",
+            "Cannot find tablespace for table 'archive_data'",
+            "Shutdown in progress - no new connections allowed",
+            "Error renaming table 'temp_users' to 'users'",
+            "Thread pool queue full, dropping connection",
+            "Transaction (1) with query UPDATE users SET last_login = '2025-01-03 08:23:15' WHERE id = 12345 and Transaction (2) with query UPDATE user_sessions SET status = 'active' WHERE user_id = 12345",
+            "Temporary table space is full. allocated 2048MB of 2048MB",
+            "Current connections: 501, Max connections: 500",
+            "Syntax error near 'WEHRE age > 18' at line 1 in query: SELECT * FROM employees WEHRE age > 18",
+            "Query: SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE country = 'US')",
+            "Duplicate entry 'john.doe@example.com' for key 'email_unique'",
+            "100 connection errors in last 60 seconds",
+            "FULLTEXT index creation requires InnoDB_ft_enable_stopword=1",
+            "Can't create new file '/var/lib/mysql/ibdata1'; errno: 28",
+            "Master info repository is not configured",
+            "Cannot delete from parent table 'departments' because foreign key constraint on 'employees' fails",
+            "Value '12.34.56' could not be converted to DOUBLE",
+            "Using password: YES, Invalid authentication factors",
+            "Page [page_id=123456] in tablespace [orders] has wrong checksum",
+            "Packet size: 16777216 bytes, Max allowed: 4194304 bytes",
+            "Tables: orders, customers, products. Consider adding indexes",
+            "Transaction waited 50 seconds for row lock on table 'orders'",
+            "Could not execute Update_rows event on table 'customers'",
+            "No space left on device; required: 1024MB, available: 100MB",
+            "Query running for 600 seconds exceeded long_query_time",
+            "Index corruption found in table 'products.idx_category'",
+            "SSL connection error: SSL_CTX_set_tmp_dh failed",
+            "Table 'audit_logs' has no primary key",
+            "Expected 21 columns but found 20 in mysql.proc",
+            "Subquery in UPDATE statement returned multiple rows",
+            "Row size exceeded maximum length for table 'product_details'",
+            "Semi-sync master wait for slave ACK timeout",
+            "Cannot establish SSL connection: protocol version mismatch",
+            "Foreign key check failed during online DDL operation",
+            "Out of memory in table 'tmp_table'; try increasing tmp_table_size"
+          ]
+    event_types:
+      - type: "query"
+        format: "[{timestamp}] {operation} on {table} completed in {duration}ms"
+        create_from_scratch: false
+      - type: "error"
+        format: "{{timestamp}},{{thread_id}},{{error_level}},{{subsystem}},{{message}}"
+        create_from_scratch: false
+
+dependencies:
+  - trigger:
+      source: "web_server"
+      event_type: "access"
+    action:
+      source: "app_server"
+      event_type: "info"
+  - trigger:
+      source: "app_server"
+      event_type: "info"
+    action:
+      source: "database_server"
+      event_type: "query"
+  - trigger:
+      source: "app_server"
+      event_type: "info"
+    action:
+      source: "database_server"
+      event_type: "error"
+      percentage: 0.1

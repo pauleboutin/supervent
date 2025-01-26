@@ -1,0 +1,59 @@
+start_time: "2024-12-09T10:00:00Z"
+end_time: "2024-12-09T11:00:00Z"
+
+response_time:
+  min: 100
+  max: 5000
+
+sources:
+  app_server:
+    description: "Express.js 4.17.1"
+    attributes:
+      level:
+        type: "choice"
+        values: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+      service:
+        type: "choice"
+        values: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+      response_time:
+        type: "integer"
+        min: 100
+        max: 5000
+      containerId:
+        type: "choice"
+        values: ['container-1', 'container-2', 'container-3']
+      clientId:
+        type: "choice"
+        values: ['client-1', 'client-2', 'client-3', 'client-4']
+      endpoint:
+        type: "choice"
+        values: ['/api/v1/users', '/api/v1/orders', '/api/v1/products', '/api/v1/auth']
+    volume:
+      - pattern: "24/7"
+        count: 1000000
+        distribution: "gaussian"
+        details: {}
+    timestamp: "2025-01-03T08:23:16.455Z"
+    event_types:
+      - type: "auth"
+        format: "[{timestamp}] {level} [{service}] - User authentication successful"
+        create_from_scratch: true
+      - type: "cache_miss"
+        format: "{timestamp} {level} [{service}] - Cache miss for product data"
+        create_from_scratch: true
+      - type: "order_create"
+        format: "{timestamp} {level} service:order-service - Order created successfully"
+        create_from_scratch: true
+      - type: "inventory"
+        format: "[{timestamp}] {level} [{service}] {containerId} - Stock level check completed"
+        create_from_scratch: true
+      - type: "rate_threshold"
+        format: "{timestamp} {level} [{service}] {containerId} {clientId} {endpoint} - Rate limit threshold approaching"
+        create_from_scratch: true
+    acceptable_values:
+      level: ['INFO', 'WARNING', 'ERROR', 'DEBUG']
+      service: ['auth-service', 'payment-service', 'inventory-service', 'user-service']
+      response_time:
+        min: 100
+        max: 5000
+      containerId: ['container-1', 'container-2', 'container-3']
