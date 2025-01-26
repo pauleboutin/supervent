@@ -43,7 +43,7 @@ async fn main() {
     let mut total_events = 0;
 
     // Start with 1 interface for Mac testing
-    let n_interfaces = 1;
+    let _n_interfaces = 1;
 
     // Spawn generator threads (use fewer on Mac)
     let mut handles = vec![];
