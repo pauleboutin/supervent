@@ -1,4 +1,4 @@
-# SuperVent Performance Optimization Plan
+# Supervent Performance Optimization Plan
 
 ## Migration Overview
 Moving from Python to Rust for:
