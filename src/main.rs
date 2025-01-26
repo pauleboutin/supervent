@@ -38,21 +38,20 @@ lazy_static! {
 
 #[tokio::main]
 async fn main() {
-    let (tx, _rx) = broadcast::channel::<Vec<Event>>(1000);
+    let (tx, _rx) = broadcast::channel::<Vec<Event>>(100);
     let start = Instant::now();
     let mut total_events = 0;
 
     // Use all AWS NICs
     let n_interfaces = 15;
 
-    // Use all AWS cores
-    let mut handles = vec![];
-    for _ in 0..64 {  // Use all AWS cores
+    // Use fewer cores to start
+    for _ in 0..16 {  // Start with 1/4 of cores
         let tx = tx.clone();
         let handle = tokio::spawn(async move {
             generate_events(tx).await;
         });
-        handles.push(handle);
+        handle.await.unwrap();
     }
 
     // Spawn one uploader per NIC
@@ -76,16 +75,13 @@ async fn main() {
     }
 
     // Wait for completion
-    for handle in handles {
-        handle.await.unwrap();
-    }
     for upload_handle in upload_handles {
         upload_handle.await.unwrap();
     }
 }
 
 async fn generate_events(tx: broadcast::Sender<Vec<Event>>) {
-    let mut events = Vec::with_capacity(1_000_000);
+    let mut events = Vec::with_capacity(100_000);
     let start_time = Utc::now();
     
     loop {
